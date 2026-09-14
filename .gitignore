@@ -1,0 +1,34 @@
+.gradle/
+.idea/
+**/build/
+**/.cxx/
+local.properties
+tools/debug.keystore
+tools/jdk-path.txt
+tools/downloads.json
+reference/
+evidence/
+artifacts/
+
+# Credentials, local environments, generated outputs
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.apk
+*.aab
+*.log
+__pycache__/
+*.py[cod]
+
+# Private session notes, original prompts and device/video investigation records
+PROGRESS.md
+docs/PLAN.md
+docs/SPEC.md
+docs/REVIEW.md
+docs/TEST-RESULTS.md
+docs/CADENCE-2026-09-14.md
+docs/private/

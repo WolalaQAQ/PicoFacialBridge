@@ -1,0 +1,42 @@
+<resources>
+    <string name="tagline">ROOTLESS / PICO 4 PRO / NO OPENXR SESSION</string>
+    <string name="language">Language / 语言</string>
+    <string name="transmit_eye">Transmit eye tracking</string>
+    <string name="transmit_face">Transmit face tracking</string>
+    <string name="eye_rate">Eye transmission: %1$.1f Hz</string>
+    <string name="face_rate">Face transmission: %1$.1f Hz</string>
+    <string name="rate_hint">New source frames successfully sent in the last second. Held frames and keepalives are not counted; no client = 0 Hz.</string>
+    <string name="selection_hint">Changes apply immediately and are saved. Both off pauses tracking data. These are transmission switches; the shared PICO algorithm still requires both permissions.</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="restart">Restart</string>
+    <string name="show_logs">Show diagnostic logs</string>
+    <string name="hide_logs">Hide diagnostic logs</string>
+    <string name="logs_hint">Diagnostic logs and system error details retain their original technical text.</string>
+    <string name="usage_hint">After Start, close this window and open Virtual Desktop.\nUse only on trusted Wi-Fi: the compatible UDP protocol is not encrypted or authenticated.</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_starting">Starting</string>
+    <string name="status_running">Running</string>
+    <string name="status_error">Error</string>
+    <string name="status_paused">Paused</string>
+    <string name="detail_initial">Tap Start to activate tracking</string>
+    <string name="detail_connecting">Connecting to PICO tracking service</string>
+    <string name="detail_live">Tracking live; UI can be closed</string>
+    <string name="detail_waiting">Waiting for fresh tracking: wear/wake headset</string>
+    <string name="detail_discovery">Waiting for VRCFT discovery</string>
+    <string name="detail_stopped">Tracking stopped; camera subscription released</string>
+    <string name="detail_paused">Both transmission switches are off. Enable either to resume.</string>
+    <string name="detail_permission">Eye and face permissions are required by the shared algorithm. Tap Start to try again.</string>
+    <string name="detail_error">Tracking error; see details below</string>
+    <string name="detail_retry">Connection failed; retrying every 5 seconds</string>
+    <string name="client_none">Not discovered</string>
+    <string name="client_stop">Client sent STOP</string>
+    <string name="client_timeout">Client timed out</string>
+    <string name="live">Live</string>
+    <string name="no_data">No fresh data</string>
+    <string name="disabled">Transmission off</string>
+    <string name="listening">Listening %1$s</string>
+    <string name="tracking_details">Eye: %1$s   Face: %2$s\nUDP: %3$s\nVRCFT client: %4$s\nSource frames: %5$d / %6$d   Packets: %7$d</string>
+    <string name="notification_channel">Tracking forwarding</string>
+    <string name="notification_active">Eye / face forwarding service. Tap to view or stop.</string>
+</resources>

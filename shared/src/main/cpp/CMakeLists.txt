@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(pico_probe LANGUAGES CXX)
+add_library(pico_probe SHARED probe.cpp)
+target_compile_features(pico_probe PRIVATE cxx_std_17)
+target_compile_options(pico_probe PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(pico_probe PRIVATE binder_ndk log dl)

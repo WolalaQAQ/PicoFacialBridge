@@ -1,0 +1,12 @@
+<resources>
+    <item name="switch_eye" type="id" />
+    <item name="switch_face" type="id" />
+    <item name="eye_rate" type="id" />
+    <item name="face_rate" type="id" />
+    <item name="language_en" type="id" />
+    <item name="language_zh" type="id" />
+    <item name="start_button" type="id" />
+    <item name="stop_button" type="id" />
+    <item name="restart_button" type="id" />
+    <item name="status" type="id" />
+</resources>
