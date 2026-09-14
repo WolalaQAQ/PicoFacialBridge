@@ -1,0 +1,185 @@
+name: Android CI and Release
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to build and upload (e.g. v0.2.0); blank = CI only'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.event.release.tag_name || inputs.tag || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  build:
+    name: Test and build arm64 APKs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Manual publishing must build the requested tag, not the selected branch.
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          # Publishing never writes to a shared build cache.
+          cache-read-only: ${{ github.event_name != 'push' || github.ref_name != github.event.repository.default_branch }}
+
+      - name: Install pinned Android toolchain
+        shell: bash
+        run: |
+          # The hosted runner supplies the SDK and accepted SDK licenses.
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" "build-tools;35.0.0" \
+            "ndk;26.1.10909125" "cmake;3.22.1"
+
+      - name: Run core, protocol, cadence and UDP loopback tests
+        run: bash tests/run-host-tests.sh
+
+      - name: Check English and Chinese resources
+        shell: pwsh
+        run: ./tests/check-translations.ps1
+
+      - name: Build and lint the bridge
+        run: >-
+          bash ./gradlew --no-daemon --stacktrace
+          :bridge:assembleDebug :bridge:assembleRelease
+          :bridge:assembleDebugAndroidTest :bridge:lintRelease
+
+      - name: Check release contents and tag version
+        shell: bash
+        run: |
+          python3 tests/test_apk_distribution.py
+          APK_PATH=bridge/build/outputs/apk/debug/bridge-debug.apk python3 tests/test_apk_distribution.py
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging \
+            bridge/build/outputs/apk/release/bridge-release-unsigned.apk > build/apk-badging.txt
+          if grep -q '^application-debuggable' build/apk-badging.txt; then
+            echo '::error::Release APK must not be debuggable'
+            exit 1
+          fi
+          version=$(sed -n "s/^package: .*versionName='\([^']*\)'.*/\1/p" build/apk-badging.txt)
+          test -n "$version"
+          if [[ -n "$RELEASE_TAG" ]]; then
+            if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || [[ "${RELEASE_TAG#v}" != "$version" ]]; then
+              echo "::error::Release tag must be v$version (the APK versionName)"
+              exit 1
+            fi
+          fi
+
+      - name: Collect CI artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts/ci
+          cp bridge/build/outputs/apk/debug/bridge-debug.apk artifacts/ci/PicoFacialBridge-debug.apk
+          cp bridge/build/outputs/apk/release/bridge-release-unsigned.apk artifacts/ci/PicoFacialBridge-release-unsigned.apk
+          cp bridge/build/outputs/apk/androidTest/debug/bridge-debug-androidTest.apk artifacts/ci/PicoFacialBridge-debug-androidTest.apk
+          cp LICENSE THIRD_PARTY_NOTICES.md artifacts/ci/
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-build
+          path: artifacts/ci/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-lint
+          path: bridge/build/reports/lint-results-release.*
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish:
+    name: Sign and upload release APK
+    needs: build
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # No repository checkout or Gradle execution in the job holding signing secrets.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: android-build
+          path: artifacts/ci
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Check existing release and install signing tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          gh release view "$RELEASE_TAG" --json tagName --jq .tagName
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0"
+
+      - name: Sign and verify APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing repository secret: $name. See docs/RELEASING.md."
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/bridge-release.keystore"
+          mkdir -p artifacts/release
+          apk="artifacts/release/PicoFacialBridge-${RELEASE_TAG}-arm64-v8a.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/bridge-release.keystore" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$apk" artifacts/ci/PicoFacialBridge-release-unsigned.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$apk"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$apk"
+          cp artifacts/ci/LICENSE artifacts/ci/THIRD_PARTY_NOTICES.md artifacts/release/
+          cd artifacts/release
+          sha256sum ./*.apk LICENSE THIRD_PARTY_NOTICES.md > SHA256SUMS.txt
+
+      - name: Remove temporary signing key
+        if: always()
+        shell: bash
+        run: rm -f -- "$RUNNER_TEMP/bridge-release.keystore"
+
+      - name: Upload signed APK, checksums and licenses to the existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            artifacts/release/*.apk artifacts/release/SHA256SUMS.txt \
+            artifacts/release/LICENSE artifacts/release/THIRD_PARTY_NOTICES.md --clobber

@@ -1,3 +1,18 @@
+## [Unreleased] - 2026-09-15
+### Features
+- Add GitHub Actions host tests, translation checks, Android lint and debug/release APK builds on branch pushes and pull requests.
+- Sign and attach an arm64 bridge APK, SHA-256 checksums and license notices when a GitHub Release is published, with manual retry for an existing release tag.
+- Rewrite separate English/Chinese READMEs for users and developers; add bilingual maintainer release guides.
+- Adopt MIT licensing, explicitly credit thoricelli's original projects, and include both project and upstream notices in bridge APKs.
+### Design Rationale
+- Keep signing in a separate job using persistent repository Secrets so public updates retain their signing identity; missing secrets never fall back to an unsigned or debug release.
+- Verify the tag against the APK's embedded version; build manual releases from the requested tag, not the workflow UI's selected branch.
+- Keep the existing Android 10 runtime target and exempt only the Google Play target-SDK lint check; all other lint errors remain fatal.
+### Notes & Caveats
+- Maintainers must configure four signing Secrets before publishing. Post-publication uploads require mutable release assets; tag pushes alone do not create releases.
+- The first migration from a local/debug signature to the public release key may require uninstalling the debug app and resetting its preferences.
+- CI does not certify hardware, firmware, Virtual Desktop coexistence or avatar behavior. No tracking/protocol behavior is changed in this update.
+
 ## [0.2.0] - 2026-09-14
 ### Features
 - Add independent, persistent eye/face transmission switches, including both-off pause and hot changes without restarting the service.

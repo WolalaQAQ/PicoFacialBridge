@@ -7,6 +7,9 @@
 *.xml text eol=lf
 *.gradle text eol=lf
 *.properties text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf
+LICENSE text eol=lf
 *.ps1 text eol=crlf
 *.bat text eol=crlf
 gradlew text eol=lf

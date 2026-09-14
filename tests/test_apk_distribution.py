@@ -23,16 +23,16 @@ class ApkDistributionTest(unittest.TestCase):
 
     def test_project_mit_license_is_bundled(self):
         self.assertIn("assets/LICENSE", self.apk.namelist())
-        expected = (ROOT / "LICENSE").read_text(encoding="utf-8")
-        self.assertIn("MIT License", expected)
-        self.assertEqual(self.apk.read("assets/LICENSE").decode("utf-8"), expected)
+        expected = (ROOT / "LICENSE").read_bytes()
+        self.assertIn(b"MIT License", expected)
+        self.assertEqual(self.apk.read("assets/LICENSE"), expected)
 
     def test_upstream_attribution_is_bundled(self):
         self.assertIn("assets/THIRD_PARTY_NOTICES.md", self.apk.namelist())
-        expected = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-        self.assertIn("Copyright (c) 2026 thoricelli", expected)
+        expected = (ROOT / "THIRD_PARTY_NOTICES.md").read_bytes()
+        self.assertIn(b"Copyright (c) 2026 thoricelli", expected)
         self.assertEqual(
-            self.apk.read("assets/THIRD_PARTY_NOTICES.md").decode("utf-8"), expected
+            self.apk.read("assets/THIRD_PARTY_NOTICES.md"), expected
         )
 
     def test_only_our_arm64_native_library_is_bundled(self):

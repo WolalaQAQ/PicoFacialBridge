@@ -16,4 +16,18 @@ android {
     sourceSets { main.java.srcDirs += '../shared/src/main/java' }
     externalNativeBuild { cmake { path '../shared/src/main/cpp/CMakeLists.txt'; version '3.22.1' } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+    lint {
+        // Firmware-specific Android 10 sideload app, not a Google Play submission.
+        // Keep all other lint errors fatal; do not change the runtime target for CI.
+        disable 'ExpiredTargetSdkVersion'
+    }
 }
+
+// Keep the repository's license notices in every distributed bridge APK.
+def licenseAssets = layout.buildDirectory.dir('generated/licenseAssets')
+tasks.register('copyLicenseAssets', Sync) {
+    from rootProject.file('LICENSE'), rootProject.file('THIRD_PARTY_NOTICES.md')
+    into licenseAssets
+}
+android.sourceSets.main.assets.srcDir(licenseAssets)
+tasks.named('preBuild').configure { dependsOn 'copyLicenseAssets' }
