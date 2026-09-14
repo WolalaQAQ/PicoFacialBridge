@@ -1,6 +1,6 @@
 """Check the built bridge APK without a device or third-party Python packages.
 
-Set APK_PATH to inspect a different variant; the default is the release APK.
+Set APK_PATH to inspect a different variant; the default is the debug-signed APK.
 """
 
 import os
@@ -11,7 +11,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 APK = Path(os.environ.get(
-    "APK_PATH", ROOT / "bridge/build/outputs/apk/release/bridge-release-unsigned.apk"
+    "APK_PATH", ROOT / "bridge/build/outputs/apk/debug/bridge-debug.apk"
 ))
 
 
@@ -44,6 +44,15 @@ class ApkDistributionTest(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertFalse(name.endswith((".keystore", ".jks", ".pem", ".p12")))
                 self.assertFalse(name.startswith(("assets/evidence/", "assets/reference/")))
+
+
+class WorkflowDistributionTest(unittest.TestCase):
+    def test_sideload_releases_need_no_user_supplied_secrets(self):
+        workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        self.assertFalse(
+            "secrets." in workflow,
+            "Sideload releases must build without user-supplied signing Secrets",
+        )
 
 
 if __name__ == "__main__":
