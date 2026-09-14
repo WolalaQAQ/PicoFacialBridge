@@ -37,18 +37,18 @@ The core LAN/VRCFT/VRChat path has been tested on this device. Current single-ch
 
 ### 1. Install the headset app
 
-1. Open [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases) and download **`PicoFacialBridge-v<version>-arm64-v8a.apk`** from the chosen release's **Assets**. The source-code ZIP is not an installer.
+1. Open [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases) and download **`PicoFacialBridge-v<version>-arm64-v8a-debug.apk`** from the chosen release's **Assets**. The source-code ZIP is not an installer.
 2. Sideload it with your preferred headset APK installer. Alternatively, enable developer/USB debugging, connect and authorize the headset, then use [Android platform-tools](https://developer.android.com/tools/releases/platform-tools):
 
    ```sh
-   adb install -r PicoFacialBridge-v0.2.0-arm64-v8a.apk
+   adb install -r PicoFacialBridge-v0.2.0-arm64-v8a-debug.apk
    ```
 
    Replace the example filename with the downloaded APK. No Android development environment is needed to use a release APK.
 3. Open **PicoFacialBridge** in the headset's 2D apps. Enable eye/face tracking in the headset's system settings, tap **Start**, and allow **both** tracking permissions.
 4. Wear/wake the headset. Leave both transmission switches on for the first connection.
 
-**Updating:** install the newer release over the old one. Official releases must retain the same signing key. If you previously installed a local or CI debug APK, Android may reject the different signature: uninstall that build first (**this resets app preferences**). For an unexpected official-to-official signature mismatch, verify the download rather than blindly uninstalling.
+**Build type and updates:** Downloads are automatically debug-signed APKs for sideloading, not Google Play builds. They are installable as downloaded; no signing setup is needed. Each CI build may use a different debug key, so Android can reject an in-place update. After verifying the download source, uninstall the old app and install the new APK if necessary (**this resets app preferences**).
 
 ### 2. Set up VRCFaceTracking
 
@@ -105,7 +105,7 @@ Both permissions are required even in single-channel mode because PICO uses a sh
 | `Error` or unsupported layout | Open **Show diagnostic logs**; record the error, model and firmware. Other firmware is not assumed supported |
 | Tracking stops after sleep/network change | Wake the headset, verify its IP, try **Restart** and reconnect VRCFT |
 | Data arrives but avatar does not move | Check VRCFT output, VRChat OSC and the avatar's actual parameters; a settings page alone is not live telemetry |
-| APK update fails | Check signing/version compatibility above; do not install unsigned CI artifacts |
+| APK update fails | Check signing/version compatibility above; download the user APK, not the instrumentation test APK |
 
 [Open an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues) with the app version, model, PICO OS version, VRCFT/module versions, reproduction steps and a redacted error excerpt. Do not upload raw facial samples, device identifiers or signing keys.
 
@@ -134,7 +134,7 @@ bash ./gradlew :bridge:assembleDebug
 The wrapper uses **Gradle 8.9**, with **AGP 8.7.3**. The first build needs network access. You can also open the repository in Android Studio. Build only `:bridge` for the user app; the diagnostic `:probe` is not needed.
 
 - Debug APK: `bridge/build/outputs/apk/debug/bridge-debug.apk` (locally debug-signed).
-- `:bridge:assembleRelease` produces `bridge/build/outputs/apk/release/bridge-release-unsigned.apk`; sign it before installation. See [release signing](docs/RELEASING.md).
+- `:bridge:assembleDebug` signs automatically; install the resulting APK directly. No keystore or signing Secrets are required. See the [release guide](docs/RELEASING.md) for automated uploads.
 
 ### Tests
 
@@ -143,7 +143,7 @@ With JDK 17 on PATH:
 ```sh
 bash tests/run-host-tests.sh
 pwsh -File tests/check-translations.ps1
-# After building the release APK; Python 3, standard library only:
+# After building the debug APK; Python 3, standard library only:
 python3 tests/test_apk_distribution.py
 ```
 
@@ -161,7 +161,7 @@ PICO tracking service → Binder / read-only shared memory
 
 Issues and pull requests are welcome. Preserve protocol compatibility and raw per-stream cadence, add tests for behavioral changes, and keep both READMEs and UI translations in sync. Never commit keys, local SDK paths, `reference/`, `evidence/` or raw biometric captures.
 
-CI runs host tests, translation checks, Android lint and APK builds. Publishing a release additionally signs and uploads the user APK. Maintainers: follow the [release guide](docs/RELEASING.md) to configure signing secrets and version tags.
+CI runs host tests, translation checks, Android lint and APK builds. Publishing a GitHub Release automatically uploads the debug-signed user APK, checksums and licenses. No custom Secrets are needed; see the [release guide](docs/RELEASING.md).
 
 ## Acknowledgements
 

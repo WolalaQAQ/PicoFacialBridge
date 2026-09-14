@@ -37,18 +37,18 @@
 
 ### 1. 安装头显应用
 
-1. 打开 [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases)，在所选版本的 **Assets** 中下载 **`PicoFacialBridge-v<版本>-arm64-v8a.apk`**。源码 ZIP 不是安装包。
+1. 打开 [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases)，在所选版本的 **Assets** 中下载 **`PicoFacialBridge-v<版本>-arm64-v8a-debug.apk`**。源码 ZIP 不是安装包。
 2. 使用你习惯的头显 APK 安装工具侧载。也可以启用开发者／USB 调试，连接并授权头显后，通过 [Android platform-tools](https://developer.android.com/tools/releases/platform-tools) 安装：
 
    ```sh
-   adb install -r PicoFacialBridge-v0.2.0-arm64-v8a.apk
+   adb install -r PicoFacialBridge-v0.2.0-arm64-v8a-debug.apk
    ```
 
    请将示例文件名替换为实际下载的 APK。使用 Release 安装包不需要配置 Android 开发环境。
 3. 在头显的 **2D 应用**中打开 **PicoFacialBridge**。在系统设置中启用眼动和面部追踪，点击 **启动 / Start**，允许请求的**两项**追踪权限。
 4. 佩戴并唤醒头显。首次连接时建议保持两项传输开关开启。
 
-**更新：**直接用新版 Release APK 覆盖安装旧版。正式版本必须使用同一签名密钥。如果之前安装的是本机编译或 CI 的 debug APK，Android 可能因签名不同拒绝更新，需要先卸载该测试版（**会清除应用偏好设置**）。如果两个正式版本之间出现意外签名不匹配，请先核实下载来源，不要盲目卸载绕过检查。
+**构建类型与更新：**下载的是自动 debug 签名的侧载 APK，不用于 Google Play。下载后即可安装，不需要配置签名。不同 CI 构建可能使用不同的 debug 密钥，因此 Android 可能拒绝覆盖更新；核实下载来源后，必要时先卸载旧版再安装新版（**会清除应用偏好设置**）。
 
 ### 2. 配置 VRCFaceTracking
 
@@ -105,7 +105,7 @@ PICO 共用追踪算法，因此仅传一路时仍需要两项权限。这些开
 | `Error` 或不支持的布局 | 打开**显示诊断日志**，记录错误、型号和固件；不要默认其他固件兼容 |
 | 休眠／换网络后停止追踪 | 唤醒头显、核对当前 IP，尝试**重启 / Restart**并重新连接 VRCFT |
 | 收到数据但 Avatar 不动 | 检查 VRCFT 输出、VRChat OSC 和 Avatar 实际参数；设置页面本身不等于实时遥测 |
-| APK 更新失败 | 检查前述签名／版本兼容性；不要安装 CI 的 unsigned 产物 |
+| APK 更新失败 | 检查前述签名／版本兼容性；下载用户 APK，而不是 instrumentation 测试 APK |
 
 [提交 Issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues) 时，请提供应用版本、头显型号、PICO OS、VRCFT／模块版本、复现步骤及脱敏后的错误片段。不要上传原始面捕样本、设备标识或签名密钥。
 
@@ -134,7 +134,7 @@ bash ./gradlew :bridge:assembleDebug
 Wrapper 使用 **Gradle 8.9**，Android Gradle Plugin 为 **8.7.3**。首次构建需要联网，也可直接用 Android Studio 打开仓库。普通用户应用只需构建 `:bridge`，无需构建诊断用的 `:probe`。
 
 - Debug APK：`bridge/build/outputs/apk/debug/bridge-debug.apk`，使用本机 debug 签名。
-- `:bridge:assembleRelease` 输出 `bridge/build/outputs/apk/release/bridge-release-unsigned.apk`，安装前必须签名，见[发布签名指南](docs/RELEASING_zh.md)。
+- `:bridge:assembleDebug` 会自动签名，产物可直接安装，无需准备 keystore 或签名 Secrets。自动上传步骤见[发布指南](docs/RELEASING_zh.md)。
 
 ### 测试
 
@@ -143,7 +143,7 @@ Wrapper 使用 **Gradle 8.9**，Android Gradle Plugin 为 **8.7.3**。首次构�
 ```sh
 bash tests/run-host-tests.sh
 pwsh -File tests/check-translations.ps1
-# 先构建 release APK；只需要 Python 3 标准库：
+# 先构建 debug APK；只需要 Python 3 标准库：
 python3 tests/test_apk_distribution.py
 ```
 
@@ -161,7 +161,7 @@ PICO 追踪服务 → Binder / 只读共享内存
 
 欢迎提交 Issue 和 Pull Request。修改时请保持协议兼容及各路原始发送节奏，为行为变化补充测试，并同步两份 README 和 UI 翻译。不要提交密钥、本机 SDK 路径、`reference/`、`evidence/` 或原始生物特征采样。
 
-CI 会执行主机测试、翻译检查、Android lint 和 APK 构建；发布 Release 时额外签名并上传用户安装包。维护者请按[发布指南](docs/RELEASING_zh.md)配置签名 Secrets 和版本标签。
+CI 会执行主机测试、翻译检查、Android lint 和 APK 构建；发布 GitHub Release 后自动上传 debug 签名的用户 APK、校验和及许可证。无需配置自定义 Secrets，步骤见[发布指南](docs/RELEASING_zh.md)。
 
 ## 致谢
 
