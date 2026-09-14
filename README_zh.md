@@ -27,11 +27,12 @@
 | 已验证固件 | **PICO OS 5.13.7**，Android 10 / API 29，arm64-v8a |
 | PC | Windows，安装 [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) 和 [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule) |
 | 网络 | PC 与头显位于同一可信局域网，UDP 9030 可达 |
+| PCVR 串流 | 已实测可与 **Virtual Desktop（VD）** 同时使用 |
 | VRChat | 已配置面捕的 Avatar，并启用 VRChat OSC |
 
 > **目前仍为实验性、固件相关项目。** 尚未确认其他型号和固件兼容。本项目依赖 PICO 内部追踪服务及内存布局，系统更新可能影响可用性；无法让缺少追踪硬件的设备获得眼追或面捕。
 
-该设备上的局域网、VRCFT 和 VRChat 核心链路已有实测。当前版本的单通道表现、长时间休眠唤醒恢复及 Virtual Desktop 并存仍需进一步真机测试。各版本证据见[验证摘要](docs/VERIFICATION.md)，历史测试结果不代表对所有环境的保证。
+**已在上述支持环境中实测，bridge 可以搭配 Virtual Desktop（VD）正常使用。** 长时间休眠唤醒恢复和单通道 Avatar 表现仍需进一步测试；VD 兼容性测试不代表这些独立场景或其他固件也已完成验证。
 
 ## 快速开始
 
@@ -79,7 +80,7 @@
 3. 启动平时使用的 PCVR／VRChat 环境，在 VRChat 中开启 **OSC**，使用兼容的 Avatar。Bridge 只负责追踪数据转发，不负责画面串流或配置 Avatar。
 4. 结束时，在应用或常驻通知中点击 **停止 / Stop**。头显重启后，需要重新打开应用并启动；本项目不会开机自启。
 
-前台服务用于在应用窗口关闭后继续转发，但系统后台策略或强制停止仍可能中断运行。与 Virtual Desktop 的并存尚未完成充分验证。
+Bridge 可以与 Virtual Desktop 同时运行。前台服务用于在应用窗口关闭后继续转发，但系统后台策略或强制停止仍可能中断运行。
 
 ## 控件与状态
 
@@ -157,9 +158,11 @@ PICO 追踪服务 → Binder / 只读共享内存
              → PicoFacialDataModule → VRCFaceTracking → VRChat OSC
 ```
 
-`bridge/` 包含应用与 UDP 服务；`shared/` 包含 JNI、解析和转发逻辑；`probe/` 是开发者诊断应用；`tests/` 包含主机、设备和网络检查。更多细节见[协议审计](docs/UPSTREAM-AUDIT.md)、[验证摘要](docs/VERIFICATION.md)和[更新日志](CHANGELOG.md)。
+`bridge/` 包含应用与 UDP 服务；`shared/` 包含 JNI、解析和转发逻辑；`probe/` 是开发者诊断应用；`tests/` 包含主机、设备和网络检查。版本变化见[更新日志](CHANGELOG.md)。
 
-欢迎提交 Issue 和 Pull Request。修改时请保持协议兼容及各路原始发送节奏，为行为变化补充测试，并同步两份 README 和 UI 翻译。不要提交密钥、本机 SDK 路径、`reference/`、`evidence/` 或原始生物特征采样。
+兼容协议使用 UDP **9030** 端口、**239.255.255.250** 多播发现地址，以及 **536 字节**追踪包（384 字节面部前缀 + 152 字节眼动前缀）。Bridge 保持原模块的数据包布局。
+
+欢迎提交 Issue 和 Pull Request。修改时请保持协议兼容及各路原始发送节奏，为行为变化补充测试，并同步两份 README 和 UI 翻译。不要提交密钥、本机 SDK 路径、`reference/`、`evidence/`、原始生物特征采样或开发过程中的计划、研究、测试流水账。`docs/` 默认仅跟踪两份公开发布指南。
 
 CI 会执行主机测试、翻译检查、Android lint 和 APK 构建；发布 GitHub Release 后自动上传 debug 签名的用户 APK、校验和及许可证。无需配置自定义 Secrets，步骤见[发布指南](docs/RELEASING_zh.md)。
 

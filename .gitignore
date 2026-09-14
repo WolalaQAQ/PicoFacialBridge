@@ -24,11 +24,15 @@ artifacts/
 __pycache__/
 *.py[cod]
 
-# Private session notes, original prompts and device/video investigation records
-PROGRESS.md
-docs/PLAN.md
-docs/SPEC.md
-docs/REVIEW.md
-docs/TEST-RESULTS.md
-docs/CADENCE-2026-09-14.md
-docs/private/
+# Local working notes and intermediate investigation/verification records
+/PROGRESS.md
+/PLAN.md
+/SPEC.md
+/REVIEW.md
+/HANDOFF*.md
+
+# Only intentionally public maintainer guides are versioned under docs/.
+# New research, plans, reviews and test transcripts stay local by default.
+/docs/*
+!/docs/RELEASING.md
+!/docs/RELEASING_zh.md

@@ -27,11 +27,12 @@ No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is opt
 | Verified firmware | **PICO OS 5.13.7**, Android 10 / API 29, arm64-v8a |
 | PC | Windows with [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) and [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule) |
 | Network | PC and headset on the same trusted LAN; UDP 9030 reachable |
+| PCVR streaming | Tested working alongside **Virtual Desktop (VD)** |
 | VRChat use | An avatar configured for face tracking and VRChat OSC enabled |
 
 > **Experimental and firmware-specific.** Other models and firmware versions are not confirmed compatible. The bridge depends on PICO's internal tracking service and memory layout, which system updates may change. It cannot add tracking hardware to an unsupported headset.
 
-The core LAN/VRCFT/VRChat path has been tested on this device. Current single-channel behavior, extended sleep/wake recovery and coexistence with Virtual Desktop still need further live testing. See the [version-specific verification summary](docs/VERIFICATION.md); historical test results are not a guarantee for every setup.
+**Using the bridge alongside Virtual Desktop (VD) has been tested and works on the supported setup.** Extended sleep/wake recovery and single-channel avatar behavior still need further testing; VD compatibility does not guarantee those separate scenarios or compatibility with other firmware.
 
 ## Quick start
 
@@ -79,7 +80,7 @@ Replace the example IP; preserve other existing settings. An empty `IP` uses dis
 3. Start your usual PCVR/VRChat setup, enable **OSC** in VRChat, and use a compatible avatar. The bridge forwards tracking only; it is not a video streamer or an avatar configuration tool.
 4. When finished, tap **Stop** in the app or its notification. After rebooting, open the app and start it again; there is no boot auto-start.
 
-The foreground service is intended to keep forwarding with the app window closed, but OEM background policy and force-stop can interrupt it. Virtual Desktop coexistence is not yet fully verified.
+The bridge can run alongside Virtual Desktop. Its foreground service keeps forwarding with the app window closed, though OEM background policy or force-stop can still interrupt it.
 
 ## Controls and status
 
@@ -157,9 +158,11 @@ PICO tracking service → Binder / read-only shared memory
                      → PicoFacialDataModule → VRCFaceTracking → VRChat OSC
 ```
 
-`bridge/` contains the app and UDP service; `shared/` contains JNI, parsing and forwarding logic; `probe/` is a developer diagnostic app; `tests/` holds host/device/network checks. See the [protocol audit](docs/UPSTREAM-AUDIT.md), [verification summary](docs/VERIFICATION.md) and [changelog](CHANGELOG.md).
+`bridge/` contains the app and UDP service; `shared/` contains JNI, parsing and forwarding logic; `probe/` is a developer diagnostic app; `tests/` holds host/device/network checks. Version changes are recorded in the [changelog](CHANGELOG.md).
 
-Issues and pull requests are welcome. Preserve protocol compatibility and raw per-stream cadence, add tests for behavioral changes, and keep both READMEs and UI translations in sync. Never commit keys, local SDK paths, `reference/`, `evidence/` or raw biometric captures.
+The compatible protocol uses UDP port **9030**, multicast discovery at **239.255.255.250**, and a **536-byte** tracking packet (384-byte face prefix + 152-byte eye prefix). The bridge preserves the original module's wire layout.
+
+Issues and pull requests are welcome. Preserve protocol compatibility and raw per-stream cadence, add tests for behavioral changes, and keep both READMEs and UI translations in sync. Never commit keys, local SDK paths, `reference/`, `evidence/`, raw biometric captures or intermediate plans/research/test transcripts. Only the two public release guides under `docs/` are tracked by default.
 
 CI runs host tests, translation checks, Android lint and APK builds. Publishing a GitHub Release automatically uploads the debug-signed user APK, checksums and licenses. No custom Secrets are needed; see the [release guide](docs/RELEASING.md).
 
