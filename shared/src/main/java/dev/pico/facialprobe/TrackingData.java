@@ -7,7 +7,20 @@ import java.nio.ByteOrder;
 public final class TrackingData {
     // Ocular blendshapes, including the blink/brow fallback read by the original PC eye parser.
     private static final int[] EYE_SHAPES = {0,2,3,4,11,12,16,26,28,30,31,35,36,38,41,44,45,46,47};
+    // The receiver picks per-eye gaze solely from 0x100 (EYE_GAZE_VECTOR_VALID) and reads
+    // pupil diameter without any validity check. Some firmware reports a fixed-depth split of
+    // the fused gaze as its "per-eye" vectors rather than independent per-eye data; forwarding
+    // that makes the receiver hold a constant offset between the two eyes. Strip the per-eye
+    // gaze point/vector validity bits on the wire so the receiver keeps using the fused gaze
+    // while still reading real pupil diameter. No-op when those bits are not set. The bits live
+    // in the left/right EyePoseStatus at packet offsets 384/388, not the combined one at 392.
+    private static final int STRIP_PER_EYE_GAZE_FLAGS = 0x80 | 0x100; // EYE_GAZE_POINT_VALID | EYE_GAZE_VECTOR_VALID
     private TrackingData() {}
+    private static void stripPerEyeGazeFlags(byte[] packet) {
+        ByteBuffer b = bytes(packet);
+        b.putInt(384, b.getInt(384) & ~STRIP_PER_EYE_GAZE_FLAGS);
+        b.putInt(388, b.getInt(388) & ~STRIP_PER_EYE_GAZE_FLAGS);
+    }
     static ByteBuffer bytes(byte[] data) { return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN); }
     public static long eyeTimestamp(byte[] eye) { return bytes(eye).getLong(168); }
     public static long faceTimestamp(byte[] face) { return bytes(face).getLong(0); }
@@ -42,7 +55,10 @@ public final class TrackingData {
         boolean hasFace = sendFace && faceFresh(face, now);
         byte[] packet = new byte[536];
         if (hasFace) System.arraycopy(face, 0, packet, 0, 384);
-        if (hasEye) System.arraycopy(eye, 0, packet, 384, 152);
+        if (hasEye) {
+            System.arraycopy(eye, 0, packet, 384, 152);
+            stripPerEyeGazeFlags(packet);
+        }
         if (!hasEye) {
             for (int index : EYE_SHAPES) bytes(packet).putFloat(8 + index * 4, 0);
             bytes(packet).putFloat(296, 0); // VIDEO_INPUT_EYE guards the PC eye parser.
@@ -64,6 +80,7 @@ public final class TrackingData {
         byte[] packet = new byte[536];
         System.arraycopy(face, 0, packet, 0, 384);
         System.arraycopy(eye, 0, packet, 384, 152);
+        stripPerEyeGazeFlags(packet);
         return packet;
     }
 }

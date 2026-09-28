@@ -62,6 +62,17 @@ public final class TrackingBufferTest {
         check(wire.getFloat(468) == 0.8f, "Module left openness at 380+88");
         check(Arrays.equals(Arrays.copyOfRange(packet, 0, 384), facial), "Do not serialize an invented face layout");
         check(Arrays.equals(Arrays.copyOfRange(packet, 384, 536), Arrays.copyOf(eyeBytes, 152)), "Copy native eye prefix exactly");
+        // The per-eye gaze point (0x80) and gaze vector (0x100) validity bits are intentionally
+        // dropped so the receiver keeps the fused gaze, while openness (0x4), pupil diameter
+        // (0x800) and the combined status survive.
+        byte[] gatedEye = eyeBytes.clone();
+        ByteBuffer gated = ByteBuffer.wrap(gatedEye).order(ByteOrder.LITTLE_ENDIAN);
+        gated.putInt(0, 0x984); gated.putInt(4, 0x984);
+        byte[] gatedPacket = TrackingData.packet(facial, gatedEye);
+        check(TrackingData.bytes(gatedPacket).getInt(384) == 0x804 && TrackingData.bytes(gatedPacket).getInt(388) == 0x804,
+                "Strip only per-eye gaze point/vector validity bits");
+        check(TrackingData.bytes(gatedPacket).getInt(392) == 3, "Combined eye status is never stripped");
+        check(gated.getInt(0) == 0x984 && gated.getInt(4) == 0x984, "Stripping must not mutate the source sample");
         eyeBytes[8] = 0;
         check(!TrackingData.eyeValid(eyeBytes), "No gaze-valid bit is not eye tracking success");
         check(TrackingData.forwardable(facial, eyeBytes, 9100000000L) == false, "Old face timestamp must not be forwarded");

@@ -160,7 +160,7 @@ PICO tracking service → Binder / read-only shared memory
 
 `bridge/` contains the app and UDP service; `shared/` contains JNI, parsing and forwarding logic; `probe/` is a developer diagnostic app; `tests/` holds host/device/network checks. Version changes are recorded in the [changelog](CHANGELOG.md).
 
-The compatible protocol uses UDP port **9030**, multicast discovery at **239.255.255.250**, and a **536-byte** tracking packet (384-byte face prefix + 152-byte eye prefix). The bridge preserves the original module's wire layout.
+The compatible protocol uses UDP port **9030**, multicast discovery at **239.255.255.250**, and a **536-byte** tracking packet (384-byte face prefix + 152-byte eye prefix). The bridge preserves the original module's wire layout. One intentional exception: the bridge does not forward the vendor's fixed-depth per-eye split marker from the eye prefix, so the receiver keeps using the fused gaze; in the default case this is a no-op, and the packet length and all other fields are unchanged.
 
 Issues and pull requests are welcome. Preserve protocol compatibility and raw per-stream cadence, add tests for behavioral changes, and keep both READMEs and UI translations in sync. Never commit keys, local SDK paths, `reference/`, `evidence/`, raw biometric captures or intermediate plans/research/test transcripts. Only the two public release guides under `docs/` are tracked by default.
 

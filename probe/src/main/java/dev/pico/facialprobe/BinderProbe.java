@@ -77,23 +77,25 @@ final class BinderProbe {
             long end = SystemClock.elapsedRealtime() + seconds * 1000L;
             long nextLog = 0;
             int loggedSamples = 0;
-            int eyeChanges = 0, faceChanges = 0, eyeValueChanges = 0, faceValueChanges = 0;
+            int eyeChanges = 0, faceChanges = 0, eyeValueChanges = 0, faceValueChanges = 0, perEyeGateFrames = 0;
             byte[] oldEye = null, oldFace = null;
             while (!stop.get() && SystemClock.elapsedRealtime() < end) {
                 byte[] e = TrackingBuffer.latest(eye.memory, 200, 168);
                 byte[] f = TrackingBuffer.latest(face.memory, 380);
                 if (e != null && !Arrays.equals(e, oldEye)) {
                     eyeChanges++; if (valuesChanged(oldEye, e, 0, 140)) eyeValueChanges++; oldEye = e;
+                    if (perEyeGateOpen(e)) perEyeGateFrames++;
                 }
                 if (f != null && !Arrays.equals(f, oldFace)) {
                     faceChanges++; if (valuesChanged(oldFace, f, 8, 380)) faceValueChanges++; oldFace = f;
                 }
                 if (SystemClock.elapsedRealtime() >= nextLog) {
                     if (e != null) logEye(e);
+                    if (e != null) logEyeGate(e);
                     if (f != null) logFace(f);
                     log.accept("COUNTS eyeFrames=" + eyeChanges + " faceFrames=" + faceChanges
                             + " eyeValueChanges=" + eyeValueChanges + " faceValueChanges=" + faceValueChanges);
-                    nextLog = SystemClock.elapsedRealtime() + 1000;
+                    nextLog = SystemClock.elapsedRealtime() + 200;
                     if (loggedSamples < 5) {
                         dump("eye-" + loggedSamples, e);
                         dump("face-" + loggedSamples, f);
@@ -103,7 +105,8 @@ final class BinderProbe {
                 SystemClock.sleep(20);
             }
             log.accept("RESULT started=" + started + " eyeFrames=" + eyeChanges + " faceFrames=" + faceChanges
-                    + " eyeValueChanges=" + eyeValueChanges + " faceValueChanges=" + faceValueChanges);
+                    + " eyeValueChanges=" + eyeValueChanges + " faceValueChanges=" + faceValueChanges
+                    + " perEyeGateFrames=" + perEyeGateFrames);
         } finally {
             boolean mustStop = started;
             ResourceScope.close(eye, face, () -> { if (mustStop) algorithm(false); });
@@ -170,8 +173,49 @@ final class BinderProbe {
 
     private void logEye(byte[] raw) {
         ByteBuffer b = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN);
-        log.accept(String.format(Locale.US, "EYE ts=%d status=%d/%d/%d gazeCombined=%.5f,%.5f,%.5f openness=%.4f/%.4f valid=%s",
-                b.getLong(168), b.getInt(0), b.getInt(4), b.getInt(8), b.getFloat(72), b.getFloat(76), b.getFloat(80), b.getFloat(84), b.getFloat(88), TrackingData.eyeValid(raw)));
+        log.accept(String.format(Locale.US, "EYE ts=%d status=%d/%d/%d gazeCombined=%.5f,%.5f,%.5f openness=%.4f/%.4f valid=%s"
+                        + " gazeL=%.5f,%.5f,%.5f gazeR=%.5f,%.5f,%.5f pupil=%.4f/%.4f",
+                b.getLong(168), b.getInt(0), b.getInt(4), b.getInt(8), b.getFloat(72), b.getFloat(76), b.getFloat(80), b.getFloat(84), b.getFloat(88), TrackingData.eyeValid(raw),
+                b.getFloat(48), b.getFloat(52), b.getFloat(56), b.getFloat(60), b.getFloat(64), b.getFloat(68), b.getFloat(92), b.getFloat(96)));
+    }
+
+    /**
+     * Per-eye diagnostic. Offsets follow the on-device slot layout used by
+     * TrackingBuffer/eyeValid: 0/4/8 left/right/combined status, 12/24/36 gaze
+     * points, 48/60/72 gaze vectors, 84/88 openness, 92/96 pupil. Relevant
+     * EyePoseStatus bits: 0x80 per-eye gaze point, 0x100 per-eye gaze vector,
+     * 0x800 pupil diameter. On firmware that does not report per-eye data these
+     * stay zero.
+     */
+    private void logEyeGate(byte[] raw) {
+        ByteBuffer b = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN);
+        int left = b.getInt(0), right = b.getInt(4), combined = b.getInt(8);
+        log.accept(String.format(Locale.US,
+                "EYEGATE ts=%d gateBits L=0x%x/0x%x/0x%x R=0x%x/0x%x/0x%x C=0x%x"
+                        + " perEyeVector=%b perEyePoint=%b pupilDiameter=%b"
+                        + " gazePointL=%.5f,%.5f,%.5f gazePointR=%.5f,%.5f,%.5f gazePointC=%.5f,%.5f,%.5f"
+                        + " gazeVectorL=%.5f,%.5f,%.5f gazeVectorR=%.5f,%.5f,%.5f gazeVectorC=%.5f,%.5f,%.5f"
+                        + " pupilL=%.4f pupilR=%.4f",
+                b.getLong(168),
+                left & 0x80, left & 0x100, left & 0x800,
+                right & 0x80, right & 0x100, right & 0x800,
+                combined,
+                (left & 0x100) != 0 || (right & 0x100) != 0,
+                (left & 0x80) != 0 || (right & 0x80) != 0,
+                (left & 0x800) != 0 || (right & 0x800) != 0,
+                b.getFloat(12), b.getFloat(16), b.getFloat(20),
+                b.getFloat(24), b.getFloat(28), b.getFloat(32),
+                b.getFloat(36), b.getFloat(40), b.getFloat(44),
+                b.getFloat(48), b.getFloat(52), b.getFloat(56),
+                b.getFloat(60), b.getFloat(64), b.getFloat(68),
+                b.getFloat(72), b.getFloat(76), b.getFloat(80),
+                b.getFloat(92), b.getFloat(96)));
+    }
+
+    /** True when either eye carries the per-eye gaze-vector validity bit. */
+    private static boolean perEyeGateOpen(byte[] raw) {
+        ByteBuffer b = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN);
+        return (b.getInt(0) & 0x100) != 0 || (b.getInt(4) & 0x100) != 0;
     }
 
     private void dump(String name, byte[] bytes) throws IOException {
@@ -182,8 +226,8 @@ final class BinderProbe {
 
     private void logFace(byte[] raw) {
         ByteBuffer b = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN);
-        log.accept(String.format(Locale.US, "FACE ts=%d valid=%.2f/%.2f jaw=%.4f smileL=%.4f smileR=%.4f blinkL=%.4f blinkR=%.4f",
-                b.getLong(0), b.getFloat(296), b.getFloat(300), b.getFloat(36), b.getFloat(84), b.getFloat(92), b.getFloat(120), b.getFloat(160)));
+        log.accept(String.format(Locale.US, "FACE ts=%d valid=%.2f/%.2f jaw=%.4f smileL=%.4f smileR=%.4f blinkL=%.4f blinkR=%.4f tongue=%.4f",
+                b.getLong(0), b.getFloat(296), b.getFloat(300), b.getFloat(36), b.getFloat(84), b.getFloat(92), b.getFloat(120), b.getFloat(160), b.getFloat(212)));
     }
 
     private static boolean valuesChanged(byte[] old, byte[] current, int from, int to) {
