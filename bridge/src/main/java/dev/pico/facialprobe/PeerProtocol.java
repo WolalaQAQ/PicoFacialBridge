@@ -11,12 +11,13 @@ final class PeerProtocol {
     private static final byte[] STOP = "STOP".getBytes(StandardCharsets.US_ASCII);
     private String endpoint;
     private boolean awaiting;
+    private boolean discovery;
     private long firstPing, nextPing;
 
     boolean connected() { return endpoint != null; }
     boolean receive(String sender, byte[] bytes, long now) {
         if (endpoint != null && !endpoint.equals(sender)) return false;
-        if (Arrays.equals(bytes, DISCOVER)) { endpoint = sender; awaiting = false; nextPing = now; return true; }
+        if (Arrays.equals(bytes, DISCOVER)) { endpoint = sender; awaiting = false; nextPing = now; discovery = true; return true; }
         if (endpoint == null) return false;
         if (Arrays.equals(bytes, POLO)) { awaiting = false; nextPing = now + 25000; return true; }
         if (Arrays.equals(bytes, STOP)) { clear(); return true; }
@@ -25,5 +26,7 @@ final class PeerProtocol {
     boolean shouldPing(long now) { return connected() && now >= nextPing; }
     void pingSent(long now) { if (!awaiting) firstPing = now; awaiting = true; nextPing = now + 5000; }
     boolean expired(long now) { return connected() && awaiting && now - firstPing >= 25000; }
-    void clear() { endpoint = null; awaiting = false; }
+    /** Every accepted discovery needs a mode reply, including a restarted PC at the same endpoint. */
+    boolean takeDiscovery() { boolean result = discovery; discovery = false; return result; }
+    void clear() { endpoint = null; awaiting = false; discovery = false; }
 }

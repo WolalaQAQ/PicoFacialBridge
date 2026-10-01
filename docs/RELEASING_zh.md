@@ -7,11 +7,11 @@
 ## 发布到 GitHub Releases
 
 1. 提交并推送源码及[工作流](../.github/workflows/android.yml)。发布新的应用版本时，在 `bridge/build.gradle` 更新 `versionName` 并递增 `versionCode`。
-2. 基于该提交创建并发布 GitHub Release。标签必须等于 `v` + `versionName`，例如当前版本使用 **`v0.2.0`**。Pre-release 也支持，只需标签与 APK 版本一致。
+2. 基于该提交创建并发布 GitHub Release。标签必须等于 `v` + `versionName`，例如当前版本使用 **`v0.3.0`**。Pre-release 也支持，只需标签与 APK 版本一致；当构建仍需实机验收时，勾选 **Set as a pre-release**。
 3. 等待 **Android CI and Release** 运行完成，然后从该 Release 的 **Assets** 下载：
 
    ```text
-   PicoFacialBridge-v0.2.0-arm64-v8a-debug.apk
+   PicoFacialBridge-v0.3.0-arm64-v8a-debug.apk
    SHA256SUMS.txt
    LICENSE
    THIRD_PARTY_NOTICES.md

@@ -5,6 +5,9 @@
     <string name="transmit_face">Transmit face tracking</string>
     <string name="eye_rate">Eye transmission: %1$.1f Hz</string>
     <string name="face_rate">Face transmission: %1$.1f Hz</string>
+    <string name="mode_line">Tracking mode: %1$s</string>
+    <string name="mode_normal">Normal (rootless: fused gaze, expressions, real eye openness)</string>
+    <string name="mode_enhance">Enhanced (plugin %1$s: per-eye gaze and real pupil)</string>
     <string name="rate_hint">New source frames successfully sent in the last second. Held frames and keepalives are not counted; no client = 0 Hz.</string>
     <string name="selection_hint">Changes apply immediately and are saved. Both off pauses tracking data. These are transmission switches; the shared PICO algorithm still requires both permissions.</string>
     <string name="start">Start</string>

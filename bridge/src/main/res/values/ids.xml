@@ -9,4 +9,5 @@
     <item name="stop_button" type="id" />
     <item name="restart_button" type="id" />
     <item name="status" type="id" />
+    <item name="mode" type="id" />
 </resources>

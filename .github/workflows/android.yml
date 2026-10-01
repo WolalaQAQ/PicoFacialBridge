@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing release tag to build and upload (e.g. v0.2.0); blank = CI only'
+        description: 'Existing release tag to build and upload (e.g. v0.3.0); blank = CI only'
         required: false
         type: string
 

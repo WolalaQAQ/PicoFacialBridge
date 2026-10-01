@@ -8,6 +8,8 @@ $sources = @("$PSScriptRoot\TrackingBufferTest.java")
 if (Test-Path $production) { $sources += $production }
 $data = "$root\shared\src\main\java\dev\pico\facialprobe\TrackingData.java"
 if (Test-Path $data) { $sources += $data }
+$mode = "$root\shared\src\main\java\dev\pico\facialprobe\TrackingMode.java"
+if (Test-Path $mode) { $sources += $mode }
 foreach($name in @('StreamHealth','ResourceScope')) {
     $file = "$root\shared\src\main\java\dev\pico\facialprobe\$name.java"
     if(Test-Path $file){$sources+=$file}

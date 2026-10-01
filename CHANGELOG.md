@@ -1,32 +1,45 @@
-## [Unreleased] - 2026-09-15
+## [0.3.0] - 2026-10-01
 ### Features
+- Fix split-stream recovery: eye validity no longer depends on the cached facial validity flag; expire facial-derived eye data after 250 ms and clear it on reconnect.
+- Preserve low-rate eye blendshapes in eye-only transmission, with mouth data and face validity cleared. Reply with the mode on every accepted discovery, including same-endpoint reconnects.
+- Detect the tracking mode automatically on the headset (normal when rootless or without an active enhancement module, enhanced when rooted with one) and show it in the app.
+- Advertise the detected mode to the receiver on a separate `PXR_MODE` control datagram, sent when a client connects, whenever the detected mode changes, and at least every 10 seconds as a keep-alive (instead of a fixed 2-second repeat).
+- Send eye and facial updates as separate tagged datagrams (`'E'` + 72 bytes, `'F'` + 224 bytes) at their own source rates instead of one fixed 536-byte packet, carrying only the fields the receiver reads. The eye stream (~90 Hz) no longer re-sends the facial frame (~23 Hz) on every update, and the unread gaze points, position guides, foveated slots and always-zero fields are dropped: wire bytes fall from about 60 KB/s to about 12 KB/s.
+- Keep the vendor's per-eye validity bits only when the enhancement module really computes independent per-eye gaze; strip them otherwise, as before.
+### Design Rationale
+- The enhancement module publishes the state it actually applied as transient namespaced properties, so a removed or disabled module can never leave a stale "enhanced" behind and no persistent system property is written.
+- The mode is a hint, not a trust boundary: the receiver still checks the per-eye and pupil validity bits on every sample.
+- Eye and facial tracking update at very different rates, so the old combined packet re-sent the unchanged half on every update of the other half. Splitting the streams removes that duplication and keeps the fast eye path independent of the slow facial model.
+- The eye parser still needs the slow-rate facial blendshapes (blink fallback, EyeWide, EyeSquint, brow), so the module caches the latest facial frame instead of receiving them at eye rate.
+### Notes & Caveats
+- **Pre-release, pending real-headset acceptance.** The split protocol, mode detection and compact framing are host-tested only; headset acceptance and the matched PC module build are still outstanding, so v0.3.0 is published as a GitHub pre-release and does not replace the stable v0.2.0.
+- The wire format is a fork-only change: the bridge and the matching PicoFacialDataModule fork must be updated together, and the upstream module plus the stock 536-byte `picofacialdatadaemon` framing are no longer spoken.
+- Mode detection is firmware-specific and reads no user data. Enhanced mode requires the companion enhancement module; without it the app behaves exactly as before.
+
+## [0.2.0] - 2026-09-15
+### Features
+- Add independent, persistent eye/face transmission switches, including both-off pause and hot changes without restarting the service.
+- Show separate successful-send eye/face source-frame Hz over the trailing second; held samples and keepalive packets do not inflate rates.
+- Add switchable English/Chinese UI, statuses and foreground notification, with a saved language preference.
 - Add GitHub Actions host tests, translation checks, Android lint and automatically debug-signed APK builds on branch pushes and pull requests.
 - Attach an automatically debug-signed arm64 bridge APK, SHA-256 checksums and license notices when a GitHub Release is published, with manual retry for an existing release tag.
 - Rewrite separate English/Chinese READMEs for users and developers; add bilingual maintainer release guides.
 - Adopt MIT licensing, explicitly credit thoricelli's original projects, and include both project and upstream notices in bridge APKs.
 - Document tested Virtual Desktop coexistence and keep intermediate development records out of the public file tree.
 ### Design Rationale
+- Preserve the 536-byte PC module protocol. Use its existing VIDEO_INPUT_EYE / VIDEO_INPUT_FACE validity flags and clear disabled data, including eye-related fields inside the facial prefix.
+- Eye-only mode retains raw blink/brow fields consumed by the stock eye parser. Enabled channels do not wait for a missing or stale other channel; no interpolation or smoothing is introduced.
+- Transmission selection is separate from the shared PICO capture algorithm and PC module configuration; the receiver-side DisableEyeTracking / DisableFaceTracking settings are unchanged.
 - Use Gradle's automatic debug signing for simple sideload distribution, with no keystore setup or custom Secrets. Keep the upload job's write token separate from the build.
 - Verify the tag against the APK's embedded version; build manual releases from the requested tag, not the workflow UI's selected branch.
 - Keep the existing Android 10 runtime target and exempt only the Google Play target-SDK lint check; all other lint errors remain fatal.
 ### Notes & Caveats
-- No signing Secrets are required. Post-publication uploads require mutable release assets; tag pushes alone do not create releases.
-- Different CI builds may use different debug keys, so updating can require uninstalling the old app and resetting its preferences. These are debuggable sideload APKs, not Google Play builds.
-- Virtual Desktop coexistence has been tested successfully on the supported setup. CI does not replace device or avatar testing. No tracking/protocol behavior is changed in this update.
-
-## [0.2.0] - 2026-09-14
-### Features
-- Add independent, persistent eye/face transmission switches, including both-off pause and hot changes without restarting the service.
-- Show separate successful-send eye/face source-frame Hz over the trailing second; held samples and keepalive packets do not inflate rates.
-- Add switchable English/Chinese UI, statuses and foreground notification, with a saved language preference.
-### Design Rationale
-- Preserve the 536-byte PC module protocol. Use its existing VIDEO_INPUT_EYE / VIDEO_INPUT_FACE validity flags and clear disabled data, including eye-related fields inside the facial prefix.
-- Eye-only mode retains raw blink/brow fields consumed by the stock eye parser. Enabled channels do not wait for a missing or stale other channel; no interpolation or smoothing is introduced.
-- Transmission selection is separate from the shared PICO capture algorithm and PC module configuration; the receiver-side DisableEyeTracking / DisableFaceTracking settings are unchanged.
-### Notes & Caveats
 - Both switches default on; both off releases the capture subscription while leaving discovery/control handling available. Single-channel transmission still uses the shared algorithm and requires both PICO runtime permissions.
 - Stock VRCFT parsers skip invalid channels and may retain their last output: disabling transmission does not reset an avatar to neutral or toggle module capability indicators.
 - Single-channel avatar behavior requires further testing; disabling a channel is not a neutral-pose reset.
+- No signing Secrets are required. Post-publication uploads require mutable release assets; tag pushes alone do not create releases.
+- Different CI builds may use different debug keys, so updating can require uninstalling the old app and resetting its preferences. These are debuggable sideload APKs, not Google Play builds.
+- Virtual Desktop coexistence has been tested successfully on the supported setup. CI does not replace device or avatar testing. No tracking/protocol behavior is changed in this update.
 
 ## [0.1.1] - 2026-09-14
 ### Features

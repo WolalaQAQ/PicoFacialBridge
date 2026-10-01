@@ -5,7 +5,7 @@ English | [简体中文](README_zh.md)
 [![Android CI](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml/badge.svg)](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Use your **PICO 4 Pro's eye and face tracking in VRCFaceTracking**, without rooting the headset. PicoFacialBridge is an Android app that reads the headset's tracking data and forwards it over your local network to the existing Pico Facial Data Module.
+Use your **PICO 4 Pro's eye and face tracking in VRCFaceTracking**, without rooting the headset. PicoFacialBridge is an Android app that reads the headset's tracking data and forwards it over your local network to a matching PicoFacialDataModule fork.
 
 **[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues) · [Release guide](docs/RELEASING.md)**
 
@@ -15,7 +15,8 @@ Use your **PICO 4 Pro's eye and face tracking in VRCFaceTracking**, without root
 - Forward raw eye and face samples independently, without added smoothing or interpolation.
 - Choose eye tracking, face tracking, or both; see each stream's actual transmission rate.
 - Switch between English and Chinese in the app. Language and transmission preferences are saved.
-- Connect to the original **PicoFacialDataModule** using automatic discovery or a configured headset IP.
+- Connect to the matching [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule) using automatic discovery or a configured headset IP.
+- Detect the tracking mode automatically and show it: **normal** on a stock, rootless headset, **enhanced** when a companion enhancement module is active. Enhanced mode forwards true per-eye gaze and real pupil diameter when the module provides them; normal mode keeps the fused gaze and the real per-eye openness the firmware exposes without the module.
 
 No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is optional for installation/debugging, not daily use. You do not need to install the original daemon alongside this app.
 
@@ -25,7 +26,7 @@ No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is opt
 | --- | --- |
 | Headset | **PICO 4 Pro** with working eye and face tracking |
 | Verified firmware | **PICO OS 5.13.7**, Android 10 / API 29, arm64-v8a |
-| PC | Windows with [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) and [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule) |
+| PC | Windows with [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) and the matching [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule) (see setup below) |
 | Network | PC and headset on the same trusted LAN; UDP 9030 reachable |
 | PCVR streaming | Tested working alongside **Virtual Desktop (VD)** |
 | VRChat use | An avatar configured for face tracking and VRChat OSC enabled |
@@ -36,13 +37,15 @@ No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is opt
 
 ## Quick start
 
+> **v0.3.0 is a pre-release.** It speaks a fork-only split protocol, so it needs the matching module fork from step 2 and is **not** a drop-in upgrade from v0.2.0. Real-headset acceptance is still in progress; [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) remains the latest stable release.
+
 ### 1. Install the headset app
 
 1. Open [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases) and download **`PicoFacialBridge-v<version>-arm64-v8a-debug.apk`** from the chosen release's **Assets**. The source-code ZIP is not an installer.
 2. Sideload it with your preferred headset APK installer. Alternatively, enable developer/USB debugging, connect and authorize the headset, then use [Android platform-tools](https://developer.android.com/tools/releases/platform-tools):
 
    ```sh
-   adb install -r PicoFacialBridge-v0.2.0-arm64-v8a-debug.apk
+   adb install -r PicoFacialBridge-v0.3.0-arm64-v8a-debug.apk
    ```
 
    Replace the example filename with the downloaded APK. No Android development environment is needed to use a release APK.
@@ -53,9 +56,11 @@ No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is opt
 
 ### 2. Set up VRCFaceTracking
 
-1. Download the ZIP from [PicoFacialDataModule Releases](https://github.com/thoricelli/PicoFacialDataModule/releases).
-2. In VRCFaceTracking, open **Module Registry**, click **+**, and select the ZIP. See the [module instructions](https://github.com/thoricelli/PicoFacialDataModule#running) for details.
-3. Start the bridge and VRCFaceTracking on the same LAN. The module should discover the headset. Use this module, not a PICO Connect / Streaming Assistant module.
+**This release uses a fork-only split protocol. Upstream module releases and the old daemon are incompatible.** Use the matching [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule); a stock module ZIP is not a substitute.
+
+1. Build the matching fork module from [WolalaQAQ/PicoFacialDataModule](https://github.com/WolalaQAQ/PicoFacialDataModule) (follow its README; no fork release is published yet). It must be the fork build that speaks the split protocol, not an upstream release.
+2. In VRCFaceTracking, open **Module Registry**, click **+**, and select that module ZIP. Back up existing module settings before replacing an old installation; do not run old and new Pico modules together.
+3. Start PicoFacialBridge and VRCFaceTracking on the same LAN. No daemon is needed. Root is optional, only for enhanced capabilities.
 
 If discovery fails, close VRCFaceTracking and set `IP` to the headset IPv4 shown in the bridge. Edit or merge these fields in `PicoFacialDataModule.json` under:
 
@@ -86,6 +91,7 @@ The bridge can run alongside Virtual Desktop. Its foreground service keeps forwa
 
 | Control / status | Meaning |
 | --- | --- |
+| Tracking mode | Normal or enhanced, detected on the headset; enhanced uses per-eye gaze and real pupil where the module provides them |
 | Start / Stop / Restart | Control the service without ADB |
 | Transmit eye / face tracking | Independent forwarding switches; changes apply immediately and persist |
 | Both switches off | Pause tracking capture/data while keeping UDP discovery and control available |
@@ -95,6 +101,8 @@ The bridge can run alongside Virtual Desktop. Its foreground service keeps forwa
 | 中文 / English | Change UI and notification language without restarting tracking |
 
 Both permissions are required even in single-channel mode because PICO uses a shared algorithm. These are **not individual camera-power controls**. The receiver may hold the last gaze/expression after a stream stops; disabling transmission does not force a neutral avatar pose.
+
+Eye-only transmission still sends low-rate `F` datagrams carrying the facial blendshapes the eye parser needs (blink fallback, brow, EyeWide/EyeSquint) with mouth data and face validity cleared. Facial output stays off and **Face Hz** stays 0.
 
 ## Troubleshooting
 
@@ -160,7 +168,7 @@ PICO tracking service → Binder / read-only shared memory
 
 `bridge/` contains the app and UDP service; `shared/` contains JNI, parsing and forwarding logic; `probe/` is a developer diagnostic app; `tests/` holds host/device/network checks. Version changes are recorded in the [changelog](CHANGELOG.md).
 
-The compatible protocol uses UDP port **9030**, multicast discovery at **239.255.255.250**, and a **536-byte** tracking packet (384-byte face prefix + 152-byte eye prefix). The bridge preserves the original module's wire layout. One intentional exception: the bridge does not forward the vendor's fixed-depth per-eye split marker from the eye prefix, so the receiver keeps using the fused gaze; in the default case this is a no-op, and the packet length and all other fields are unchanged.
+The protocol uses UDP port **9030** and multicast discovery at **239.255.255.250**. Eye and facial updates are separate tagged datagrams sent at their own source rates: `'E'` + 72 bytes (eye validity, gaze vectors, openness, pupil) and `'F'` + 224 bytes (the 52 used blendshapes and the eye/face validity flags). Only the fields the receiver reads are carried, so the ~90 Hz eye stream never re-sends the ~23 Hz facial frame and the unread gaze points, position guides, foveated slots and always-zero fields are dropped (about 60 KB/s down to about 12 KB/s). A separate short ASCII control datagram (`PXR_MODE ...`) advertises the detected mode. Inside the eye datagram, the vendor's fixed-depth per-eye split marker is stripped in normal mode so the receiver keeps using the fused gaze; when the enhancement module is active and really computes independent per-eye gaze, the bridge leaves those validity bits intact. This is a fork-only wire format: the bridge and the module must be updated together.
 
 Issues and pull requests are welcome. Preserve protocol compatibility and raw per-stream cadence, add tests for behavioral changes, and keep both READMEs and UI translations in sync. Never commit keys, local SDK paths, `reference/`, `evidence/`, raw biometric captures or intermediate plans/research/test transcripts. Only the two public release guides under `docs/` are tracked by default.
 
@@ -170,7 +178,7 @@ CI runs host tests, translation checks, Android lint and APK builds. Publishing 
 
 **Thank you to [thoricelli](https://github.com/thoricelli)** for [PicoFacialDataDaemon](https://github.com/thoricelli/PicoFacialDataDaemon) and [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule).
 
-This project was developed **with reference to the original projects**, particularly their Binder calls, shared-memory data layouts and UDP protocol. Their work provided the foundation for communicating with the headset and retaining compatibility with the existing VRCFaceTracking module. PicoFacialBridge packages the headset side as a rootless Android app with its own lifecycle and forwarding implementation.
+This project was developed **with reference to the original projects**, particularly their Binder calls, shared-memory data layouts and UDP protocol. Their work provided the foundation for communicating with the headset and the original VRCFaceTracking integration; this fork now uses a different wire format. PicoFacialBridge packages the headset side as a rootless Android app with its own lifecycle and forwarding implementation.
 
 This is an independent community project, not an official PICO product or an upstream-endorsed release.
 

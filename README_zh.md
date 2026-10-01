@@ -5,7 +5,7 @@
 [![Android CI](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml/badge.svg)](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-让 **PICO 4 Pro 的眼动与面部追踪接入 VRCFaceTracking**，无需 Root。PicoFacialBridge 是安装在头显上的 Android 应用，读取头显追踪数据，通过局域网转发给现有的 Pico Facial Data Module。
+让 **PICO 4 Pro 的眼动与面部追踪接入 VRCFaceTracking**，无需 Root。PicoFacialBridge 是安装在头显上的 Android 应用，读取头显追踪数据，通过局域网转发给配套的 PicoFacialDataModule fork。
 
 **[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues) · [发布指南](docs/RELEASING_zh.md)**
 
@@ -15,7 +15,8 @@
 - 独立转发眼动和面部原始样本，不额外添加平滑或插值。
 - 支持仅眼追、仅面捕或两路同时传输，并显示各路实际发送速率。
 - 应用内切换中文、英文，保存语言和传输偏好。
-- 兼容原版 **PicoFacialDataModule**，支持自动发现或指定头显 IP。
+- 使用配套 [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule)，支持自动发现或指定头显 IP。
+- 自动检测追踪模式并显示：普通头显（免 root）为**普通模式**，检测到增强模块生效时进入**增强模式**。增强模式在模块提供数据时转发真正的逐眼视线与真实瞳孔直径；普通模式保留融合视线，以及固件本身就会给出的真实逐眼睁眼度。
 
 无需 Root、Magisk、Shizuku、PICO Connect，也不占用 OpenXR session。ADB 仅是安装和调试的可选工具，日常使用不需要。使用此应用时，不必另外安装原项目的 daemon。
 
@@ -25,7 +26,7 @@
 | --- | --- |
 | 头显 | 具备正常眼动、面部追踪功能的 **PICO 4 Pro** |
 | 已验证固件 | **PICO OS 5.13.7**，Android 10 / API 29，arm64-v8a |
-| PC | Windows，安装 [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) 和 [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule) |
+| PC | Windows，安装 [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) 和配套 [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule)（见下方配置步骤） |
 | 网络 | PC 与头显位于同一可信局域网，UDP 9030 可达 |
 | PCVR 串流 | 已实测可与 **Virtual Desktop（VD）** 同时使用 |
 | VRChat | 已配置面捕的 Avatar，并启用 VRChat OSC |
@@ -36,13 +37,15 @@
 
 ## 快速开始
 
+> **v0.3.0 是预发布版本。**它使用 fork 专用的分包协议，因此必须搭配第 2 步的配套模块 fork，且**不能**从 v0.2.0 直接覆盖升级。实机验收仍在进行中；[v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) 仍是最新稳定版。
+
 ### 1. 安装头显应用
 
 1. 打开 [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases)，在所选版本的 **Assets** 中下载 **`PicoFacialBridge-v<版本>-arm64-v8a-debug.apk`**。源码 ZIP 不是安装包。
 2. 使用你习惯的头显 APK 安装工具侧载。也可以启用开发者／USB 调试，连接并授权头显后，通过 [Android platform-tools](https://developer.android.com/tools/releases/platform-tools) 安装：
 
    ```sh
-   adb install -r PicoFacialBridge-v0.2.0-arm64-v8a-debug.apk
+   adb install -r PicoFacialBridge-v0.3.0-arm64-v8a-debug.apk
    ```
 
    请将示例文件名替换为实际下载的 APK。使用 Release 安装包不需要配置 Android 开发环境。
@@ -53,9 +56,11 @@
 
 ### 2. 配置 VRCFaceTracking
 
-1. 从 [PicoFacialDataModule Releases](https://github.com/thoricelli/PicoFacialDataModule/releases) 下载模块 ZIP。
-2. 在 VRCFaceTracking 的 **Module Registry** 中点击 **+**，选择该 ZIP。详情参见[原模块说明](https://github.com/thoricelli/PicoFacialDataModule#running)。
-3. 在同一局域网启动 bridge 和 VRCFaceTracking，模块应自动发现头显。请使用此模块，而不是 PICO Connect / Streaming Assistant 模块。
+**本版本使用 fork 专用分包协议，不兼容原版模块和旧 daemon。** 请使用配套的 [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule)；上游模块 ZIP 不能替代。
+
+1. 按 [WolalaQAQ/PicoFacialDataModule](https://github.com/WolalaQAQ/PicoFacialDataModule) 的说明自行构建配套 fork 模块（目前尚未发布 fork Release）；必须支持分包协议，不要使用上游 Release。
+2. 在 VRCFaceTracking 的 **Module Registry** 中点击 **+**，选择该模块 ZIP。替换旧安装前备份模块配置，不要同时加载新旧 Pico 模块。
+3. 在同一局域网启动 PicoFacialBridge 和 VRCFaceTracking。无需 daemon；Root 仅用于可选增强能力。
 
 如果发现失败，先关闭 VRCFaceTracking，将 `IP` 设置为 bridge 界面显示的头显 IPv4。在以下目录的 `PicoFacialDataModule.json` 中修改或合并这些字段：
 
@@ -86,6 +91,7 @@ Bridge 可以与 Virtual Desktop 同时运行。前台服务用于在应用窗�
 
 | 控件／状态 | 含义 |
 | --- | --- |
+| 追踪模式 | 在头显侧自动检测的普通／增强模式；增强模式在模块提供数据时使用逐眼视线与真实瞳孔 |
 | 启动 / 停止 / 重启 | 无需 ADB 即可控制追踪服务 |
 | 传输眼追 / 传输面捕 | 独立控制发送，修改立即生效并保存 |
 | 两项都关闭 | 暂停追踪采集和数据发送，保留 UDP 发现与控制 |
@@ -95,6 +101,8 @@ Bridge 可以与 Virtual Desktop 同时运行。前台服务用于在应用窗�
 | 中文 / English | 切换界面与通知语言，不重启追踪 |
 
 PICO 共用追踪算法，因此仅传一路时仍需要两项权限。这些开关**不是独立摄像头电源开关**。接收端可能在某一路停止后保持最后的视线／表情，关闭传输不会让 Avatar 自动恢复中性姿态。
+
+仅眼追传输仍会发送低频 `F` 数据报，保留眼动解析需要的面部形态键（眨眼回退、眉毛、EyeWide/EyeSquint），并清空嘴部数据与面部有效标志；面捕输出保持关闭，**Face Hz** 保持 0。
 
 ## 常见问题
 
@@ -160,7 +168,7 @@ PICO 追踪服务 → Binder / 只读共享内存
 
 `bridge/` 包含应用与 UDP 服务；`shared/` 包含 JNI、解析和转发逻辑；`probe/` 是开发者诊断应用；`tests/` 包含主机、设备和网络检查。版本变化见[更新日志](CHANGELOG.md)。
 
-兼容协议使用 UDP **9030** 端口、**239.255.255.250** 多播发现地址，以及 **536 字节**追踪包（384 字节面部前缀 + 152 字节眼动前缀）。Bridge 保持原模块的数据包布局。一处有意的例外：转发时不会把厂商的固定深度拆分分眼标记透传，接收端继续使用合并视线；默认情况下该处理为 no-op，包长与其它字段均不变。
+协议使用 UDP **9030** 端口和 **239.255.255.250** 多播发现地址。眼动与面捕是两条按各自源频率发送的带标签数据报：`'E'` + 72 字节（眼动有效位、视线向量、睁眼度、瞳孔）和 `'F'` + 224 字节（实际用到的 52 个形态键和眼/面有效标志）。只携带接收端会读的字段，因此约 90 Hz 的眼动流不会再重复携带约 23 Hz 的面捕帧，未被读取的 3D 视线点、position guide、foveated 槽和恒 0 字段全部丢弃（约 60 KB/s 降到约 12 KB/s）。另有独立的简短 ASCII 控制报文（`PXR_MODE ...`）通告检测到的模式。眼动数据报里，普通模式下仍会屏蔽厂商的固定深度拆分分眼标记，让接收端继续使用融合视线；当增强模块生效、确实给出独立逐眼视线时，Bridge 会保留这些有效位。这是 fork 专用的线格式：Bridge 与模块必须一起更新。
 
 欢迎提交 Issue 和 Pull Request。修改时请保持协议兼容及各路原始发送节奏，为行为变化补充测试，并同步两份 README 和 UI 翻译。不要提交密钥、本机 SDK 路径、`reference/`、`evidence/`、原始生物特征采样或开发过程中的计划、研究、测试流水账。`docs/` 默认仅跟踪两份公开发布指南。
 
@@ -170,7 +178,7 @@ CI 会执行主机测试、翻译检查、Android lint 和 APK 构建；发布 G
 
 衷心感谢 **[thoricelli](https://github.com/thoricelli)** 开发的原项目 [PicoFacialDataDaemon](https://github.com/thoricelli/PicoFacialDataDaemon) 和 [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule)。
 
-本项目在开发过程中**参考了原项目**，尤其是 Binder 调用、共享内存数据布局和 UDP 协议。原作者的工作为访问头显追踪服务、保持与现有 VRCFaceTracking 模块兼容奠定了基础。PicoFacialBridge 将头显端实现为无需 Root 的 Android 应用，并提供自身的生命周期管理和数据转发实现。
+本项目在开发过程中**参考了原项目**，尤其是 Binder 调用、共享内存数据布局和 UDP 协议。原作者的工作为访问头显追踪服务和原始 VRCFaceTracking 集成奠定了基础；当前 fork 已使用不同的线格式。PicoFacialBridge 将头显端实现为无需 Root 的 Android 应用，并提供自身的生命周期管理和数据转发实现。
 
 这是独立的社区项目，不是 PICO 官方产品，也不代表上游作者的官方发布。
 
