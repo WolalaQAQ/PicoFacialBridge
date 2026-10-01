@@ -1,11 +1,11 @@
-"""Compare complete, ordered UDP delivery against the APK's sender ledger (no wire changes)."""
+"""Compare complete, ordered UDP delivery against the APK's sender ledger (BridgeSplit protocol)."""
 import argparse
 import hashlib
 import json
+import os
 import pathlib
 import re
 import socket
-import struct
 import subprocess
 import time
 
@@ -17,6 +17,7 @@ parser.add_argument('--output', default='evidence/video-analysis/delivery-audit.
 parser.add_argument('--adb', default='adb', help='ADB command or absolute executable path')
 args = parser.parse_args()
 target = (args.headset, 9030)
+SUBSCRIBE = b'PXR_SUB id=' + os.urandom(8).hex().encode() + b' mask=3'
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', 9030))
 sock.settimeout(0.1)
@@ -32,7 +33,7 @@ start = time.monotonic()
 first_data = last_data = stopping_at = None
 last_rx = next_discovery = next_report = start - 3
 digest = hashlib.sha256()
-packets = malformed = pings = eye_changes = face_changes = 0
+packets = eye_packets = face_packets = malformed = pings = modes = eye_changes = face_changes = 0
 previous_eye = previous_face = None
 print('AUDIT_READY: waiting for worn headset; first data packet starts the timed capture.', flush=True)
 try:
@@ -59,7 +60,15 @@ try:
             pings += 1
             if stopping_at is None: sock.sendto(b'POLO', target)
             continue
-        if len(data) != 536:
+        if data[:8] == b'PXR_MODE':
+            modes += 1
+            if stopping_at is None: sock.sendto(SUBSCRIBE, target)  # No data before a subscription.
+            continue
+        if data[:11] == b'PXR_SUB_ACK':
+            continue
+        is_eye = len(data) == 83 and data[0:1] == b'E'
+        is_face = len(data) == 227 and data[0:1] == b'F'
+        if not (is_eye or is_face):
             malformed += 1
             continue
         if first_data is None:
@@ -68,13 +77,16 @@ try:
         last_data = last_rx
         digest.update(data)
         packets += 1
-        eye = data[384:536]
-        face = data[8:380]
-        if previous_eye is not None and eye != previous_eye: eye_changes += 1
-        if previous_face is not None and face != previous_face: face_changes += 1
-        previous_eye, previous_face = eye, face
+        if is_eye:
+            eye_packets += 1
+            if previous_eye is not None and data != previous_eye: eye_changes += 1
+            previous_eye = data
+        else:
+            face_packets += 1
+            if previous_face is not None and data != previous_face: face_changes += 1
+            previous_face = data
         if last_rx >= next_report:
-            print(f'packets={packets} elapsed={last_rx-first_data:.1f}s raw_eye_changes={eye_changes} face_changes={face_changes}', flush=True)
+            print(f'packets={packets} ({eye_packets}E/{face_packets}F) elapsed={last_rx-first_data:.1f}s raw_eye_changes={eye_changes} face_changes={face_changes}', flush=True)
             next_report = last_rx + 5
 finally:
     sock.sendto(b'STOP', target)
@@ -86,7 +98,8 @@ output.parent.mkdir(parents=True, exist_ok=True)
 output.with_suffix('.sender.log').write_text(log, encoding='utf-8')
 matches = re.findall(r'DELIVERY_END reason=STOP packets=(\d+) sha256=([a-f0-9]{64}) ringOverruns=(\d+)', log)
 sender = dict(packets=int(matches[-1][0]), sha256=matches[-1][1], ring_overruns=int(matches[-1][2])) if matches else None
-result = dict(received_packets=packets, receiver_sha256=digest.hexdigest(), malformed=malformed, keepalives=pings,
+result = dict(received_packets=packets, eye_packets=eye_packets, face_packets=face_packets, receiver_sha256=digest.hexdigest(),
+              malformed=malformed, keepalives=pings, mode_messages=modes,
               receive_buffer_bytes=buffer_size, raw_eye_changes=eye_changes, face_changes=face_changes,
               seconds=0 if first_data is None else last_data-first_data,
               sender=sender)

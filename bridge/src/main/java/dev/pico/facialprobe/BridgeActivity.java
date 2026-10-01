@@ -19,7 +19,7 @@ import android.widget.TextView;
 
 public final class BridgeActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
-    private TextView status, details, logs, eyeRate, faceRate;
+    private TextView status, details, logs, eyeRate, faceRate, modeText;
     private Button logButton;
     private SharedPreferences prefs;
     private Context localized;
@@ -40,6 +40,7 @@ public final class BridgeActivity extends Activity {
         content.setBackgroundColor(Color.rgb(18, 24, 31)); scroll.addView(content);
         text(content, "PicoFacialBridge", 30, Color.WHITE);
         text(content, s(R.string.tagline), 13, Color.rgb(90, 209, 178));
+        modeText = text(content, "", 15, Color.rgb(158, 174, 190)); modeText.setId(R.id.mode);
         LinearLayout languages = new LinearLayout(this); content.addView(languages);
         text(languages, s(R.string.language), 15, Color.WHITE);
         button(languages, "中文", () -> setLanguage("zh")).setId(R.id.language_zh);
@@ -104,6 +105,8 @@ public final class BridgeActivity extends Activity {
         double[] hz = BridgeState.rates.hz(SystemClock.elapsedRealtimeNanos());
         eyeRate.setText(s(R.string.eye_rate, sendEye && BridgeState.udp ? hz[0] : 0d));
         faceRate.setText(s(R.string.face_rate, sendFace && BridgeState.udp ? hz[1] : 0d));
+        TrackingMode.Info mode = BridgeState.mode;
+        modeText.setText(s(R.string.mode_line, mode.enhance ? s(R.string.mode_enhance, mode.plugin) : s(R.string.mode_normal)));
         status.setText(s(BridgeState.status));
         status.setTextColor(BridgeState.status == R.string.status_running ? Color.rgb(90, 209, 178) : Color.WHITE);
         String client = BridgeState.client.isEmpty() ? s(BridgeState.clientMessage) : BridgeState.client;

@@ -1,10 +1,18 @@
-"""VRCFT-compatible LAN receiver; no ADB or PICO Connect in the data path."""
+"""LAN receiver for the BridgeSplit protocol; no ADB or PICO Connect in the data path.
+
+Subscribes to both channels after PXR_MODE. Wire format (19-byte header, little-endian):
+  'E' native eye frame         -> 83 bytes
+  'F' all 52 facial shapes     -> 227 bytes
+"""
 import argparse
 import json
+import os
 import pathlib
 import socket
 import struct
 import time
+
+SUBSCRIBE = b'PXR_SUB id=' + os.urandom(8).hex().encode() + b' mask=3'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--headset', help='Headset IPv4 shown in the APK; required unless --multicast is used')
@@ -26,9 +34,10 @@ start = time.monotonic()
 next_discovery = next_report = start
 peer = None
 last_rx = start
-packets = pings = malformed = gaze_changes = face_changes = 0
+eye_packets = face_packets = pings = modes = malformed = 0
+gaze_changes = face_changes = 0
 last_gaze = last_face = None
-first_packet = last_packet = None
+last_eye = last_face_packet = None
 gazes = []
 jaws = []
 print(f'Listening UDP 9030; discovery={target}, duration={args.seconds}s', flush=True)
@@ -52,39 +61,58 @@ try:
             pings += 1
             sock.sendto(b'POLO', peer)
             continue
-        if len(data) != 536:
-            malformed += 1
+        if data[:8] == b'PXR_MODE':
+            modes += 1
+            sock.sendto(SUBSCRIBE, peer)  # Bridge sends no tracking data before a subscription.
             continue
-        timestamp = struct.unpack_from('<Q', data, 0)[0]
-        valid_eye, valid_face = struct.unpack_from('<2f', data, 296)
-        left_status, right_status, combined_status = struct.unpack_from('<3I', data, 384)
-        gaze = struct.unpack_from('<3f', data, 456)
-        face = struct.unpack_from('<72f', data, 8)
-        if first_packet is None: first_packet = data
-        last_packet = data
-        packets += 1
-        if last_gaze is not None and gaze != last_gaze: gaze_changes += 1
-        if last_face is not None and face != last_face: face_changes += 1
-        last_gaze, last_face = gaze, face
-        gazes.append(gaze)
-        jaws.append(face[7])
-        if now >= next_report:
-            print(f'frames={packets} pings={pings} ts={timestamp} valid={valid_eye}/{valid_face} status={left_status}/{right_status}/{combined_status} gaze={gaze} jaw={face[7]:.4f}', flush=True)
-            next_report = now + 5
+        if data[:11] == b'PXR_SUB_ACK':
+            continue
+        if len(data) == 83 and data[0:1] == b'E':
+            timestamp = struct.unpack_from('<Q', data, 11)[0]
+            left_status, right_status, combined_status = struct.unpack_from('<3I', data, 19)
+            gaze = struct.unpack_from('<3f', data, 55)
+            openness = struct.unpack_from('<2f', data, 67)
+            pupil = struct.unpack_from('<2f', data, 75)
+            eye_packets += 1
+            if last_gaze is not None and gaze != last_gaze:
+                gaze_changes += 1
+            last_gaze, last_eye = gaze, data
+            gazes.append(gaze)
+            if now >= next_report:
+                print(f'eye ts={timestamp} status={left_status}/{right_status}/{combined_status} gaze={gaze} open={openness} pupil={pupil}', flush=True)
+                next_report = now + 5
+            continue
+        if len(data) == 227 and data[0:1] == b'F':
+            timestamp = struct.unpack_from('<Q', data, 11)[0]
+            valid_eye, valid_face = data[2] & 1, (data[2] >> 1) & 1
+            face = struct.unpack_from('<52f', data, 19)
+            face_packets += 1
+            if last_face is not None and face != last_face:
+                face_changes += 1
+            last_face, last_face_packet = face, data
+            jaws.append(face[7])
+            if now >= next_report:
+                print(f'face ts={timestamp} valid={valid_eye}/{valid_face} jaw={face[7]:.4f}', flush=True)
+                next_report = now + 5
+            continue
+        malformed += 1
 finally:
     if peer:
         sock.sendto(b'STOP', peer)
     sock.close()
+packets = eye_packets + face_packets
 result = dict(mode='multicast' if args.multicast else 'unicast', peer=peer, seconds=time.monotonic()-start,
-              packets=packets, pings=pings, malformed=malformed, gaze_changes=gaze_changes, face_changes=face_changes)
+              packets=packets, eye_packets=eye_packets, face_packets=face_packets, pings=pings, modes=modes, malformed=malformed,
+              gaze_changes=gaze_changes, face_changes=face_changes, udp_hz=packets/(time.monotonic()-start))
 if gazes:
     result.update(gaze_min=[min(v[i] for v in gazes) for i in range(3)], gaze_max=[max(v[i] for v in gazes) for i in range(3)], jaw_min=min(jaws), jaw_max=max(jaws))
 output = pathlib.Path(args.output)
 output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(json.dumps(result, indent=2), encoding='utf-8')
-if first_packet:
-    output.with_suffix('.first.bin').write_bytes(first_packet)
-    output.with_suffix('.last.bin').write_bytes(last_packet)
+if last_eye:
+    output.with_suffix('.eye.bin').write_bytes(last_eye)
+if last_face_packet:
+    output.with_suffix('.face.bin').write_bytes(last_face_packet)
 print(json.dumps(result, indent=2), flush=True)
-if not (packets >= 10 and gaze_changes >= 3 and face_changes >= 3 and malformed == 0):
+if not (eye_packets >= 10 and face_packets >= 10 and gaze_changes >= 3 and face_changes >= 3 and malformed == 0):
     raise SystemExit('FAIL: live end-to-end tracking criterion not met (inspect wear/permissions/network)')

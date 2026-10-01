@@ -5,6 +5,9 @@
     <string name="transmit_face">传输面捕</string>
     <string name="eye_rate">眼追传输：%1$.1f Hz</string>
     <string name="face_rate">面捕传输：%1$.1f Hz</string>
+    <string name="mode_line">追踪模式：%1$s</string>
+    <string name="mode_normal">普通（免 root：融合视线、表情、真实睁眼度）</string>
+    <string name="mode_enhance">增强（插件 %1$s：逐眼视线与真实瞳孔）</string>
     <string name="rate_hint">统计最近 1 秒成功发送的新源帧。重复携带的旧帧和心跳不计数；未连接客户端时为 0 Hz。</string>
     <string name="selection_hint">修改即时生效并自动保存。两项都关闭时暂停追踪数据。此处控制传输；PICO 共用算法仍需两项权限。</string>
     <string name="start">启动</string>

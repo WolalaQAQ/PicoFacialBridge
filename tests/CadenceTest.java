@@ -61,21 +61,26 @@ public final class CadenceTest {
         byte[] initialFace=face(base,0.2f);
         pump.accept(Collections.singletonList(eye(base,0)),Collections.singletonList(initialFace),base,packets::add);
         pump.accept(Arrays.asList(eye(base+step,0.3f),eye(base+2*step,-0.4f),eye(base+3*step,0.7f)),Collections.emptyList(),base+3*step,packets::add);
-        check(packets.size()==4,"Eye-only updates must not wait for the slower face stream");
-        check(TrackingData.bytes(packets.get(1)).getFloat(456)==0.3f,"No interpolation or smoothing of gaze");
-        check(TrackingData.bytes(packets.get(2)).getFloat(456)==-0.4f,"Every intermediate raw gaze is forwarded");
-        check(TrackingData.bytes(packets.get(3)).getLong(0)==base,"Unchanged face is held, not invented");
+        check(packets.size()==5,"One eye and one facial datagram per source update");
+        check(packets.get(0)[0]=='E'&&packets.get(1)[0]=='F',"Both streams are forwarded as separate datagrams");
+        check(TrackingData.bytes(packets.get(2)).getFloat(55)==0.3f,"No interpolation or smoothing of gaze");
+        check(TrackingData.bytes(packets.get(3)).getFloat(55)==-0.4f,"Every intermediate raw gaze is forwarded");
+        check(TrackingData.bytes(packets.get(4)).getFloat(55)==0.7f,"Every eye frame in the batch is forwarded in order");
         pump.accept(Collections.emptyList(),Collections.singletonList(face(base+4*step,0.9f)),base+4*step,packets::add);
-        check(packets.size()==5,"Face-only update is forwarded too");
-        check(TrackingData.bytes(packets.get(4)).getFloat(36)==0.9f,"Raw jaw value preserved");
+        check(packets.size()==6&&packets.get(5)[0]=='F',"Face-only update is forwarded too");
+        check(TrackingData.bytes(packets.get(5)).getFloat(47)==0.9f,"Raw jaw value preserved");
         pump.accept(Collections.emptyList(),Collections.emptyList(),base+5*step,packets::add);
-        check(packets.size()==5,"No synthetic duplicate events on empty poll");
+        check(packets.size()==6,"No synthetic duplicate events on empty poll");
         FramePump burst=new FramePump();List<byte[]> burstPackets=new ArrayList<>();
         List<byte[]> eyes=new ArrayList<>(),faces=new ArrayList<>();
         for(int i=0;i<90;i++){eyes.add(eye(base+i*step,i/100f));if(i%4==0)faces.add(face(base+i*step,i/100f));}
         burst.accept(eyes,faces,base+90*step,burstPackets::add);
-        check(burstPackets.size()==90,"90 eye frames survive a batched 22.5Hz face stream");
-        for(int i=0;i<90;i++)check(TrackingData.bytes(burstPackets.get(i)).getFloat(456)==i/100f,"Burst preserves order/raw values");
+        check(burstPackets.size()==113,"90 eye + 23 facial frames survive a batched mixed-rate stream");
+        int eyePackets=0;
+        for(byte[] burstPacket:burstPackets)if(burstPacket[0]=='E'){
+            check(TrackingData.bytes(burstPacket).getFloat(55)==eyePackets/100f,"Burst preserves order/raw values");eyePackets++;
+        }
+        check(eyePackets==90,"Every eye frame is forwarded individually");
         ByteBuffer memory=ring(8);TrackingBuffer.Cursor cursor=new TrackingBuffer.Cursor(memory,200,168);
         check(cursor.read().isEmpty(),"Empty ring has no frames");
         publish(memory,0,base);check(cursor.read().size()==1,"Initial latest frame");

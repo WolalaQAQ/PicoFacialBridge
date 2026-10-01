@@ -24,6 +24,9 @@ artifacts/
 __pycache__/
 *.py[cod]
 
+# Local device-side enhancement harness (not part of the app; never published)
+/enhance/
+
 # Local working notes and intermediate investigation/verification records
 /PROGRESS.md
 /PLAN.md

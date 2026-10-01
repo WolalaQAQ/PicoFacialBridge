@@ -7,6 +7,7 @@ final class BridgeState {
     static volatile int status = R.string.status_stopped, detail = R.string.detail_initial, clientMessage = R.string.client_none;
     static volatile String error = "", client = "", address = "-";
     static volatile boolean eye, face, udp;
+    static volatile TrackingMode.Info mode = TrackingMode.normal();
     static volatile long packets, eyeFrames, faceFrames;
     static volatile long ringOverruns;
     static final TransmissionRates rates = new TransmissionRates();
