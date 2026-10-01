@@ -15,7 +15,7 @@
 - The PC subscribes only after `PXR_MODE`, so it never sends unknown control to the legacy daemon, which treats any non-POLO heartbeat reply as a failure.
 ### Notes & Caveats
 - **Pre-release.** A first real-headset acceptance round passed on 2026-10-01 (subscription and ACK, all four effective-channel combinations, epoch agreement, cache clearing on switch changes, pause with both switches off, missing-frame to neutral, and application-restart recovery: headset UI about 6 s, PC re-subscription about 33 s). A full headset reboot, legacy-daemon co-existence, long-run stability and avatar output are still unverified, so v0.3.0 stays a GitHub pre-release and does not replace the stable v0.2.0.
-- The wire format is a breaking change: the bridge and the companion UnifiedPicoModule must be updated together. The upstream module, the earlier PicoFacialDataModule fork and the stock 536-byte `picofacialdatadaemon` framing are no longer spoken.
+- The wire format is a breaking change: the bridge and the companion [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) must be updated together. The upstream module, the earlier PicoFacialDataModule fork and the stock 536-byte `picofacialdatadaemon` framing are no longer spoken.
 - Mode detection is firmware-specific and reads no user data. Enhanced mode requires the companion enhancement module; without it the app behaves exactly as before.
 
 ## [0.2.0] - 2026-09-15
