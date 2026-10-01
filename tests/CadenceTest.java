@@ -63,12 +63,12 @@ public final class CadenceTest {
         pump.accept(Arrays.asList(eye(base+step,0.3f),eye(base+2*step,-0.4f),eye(base+3*step,0.7f)),Collections.emptyList(),base+3*step,packets::add);
         check(packets.size()==5,"One eye and one facial datagram per source update");
         check(packets.get(0)[0]=='E'&&packets.get(1)[0]=='F',"Both streams are forwarded as separate datagrams");
-        check(TrackingData.bytes(packets.get(2)).getFloat(45)==0.3f,"No interpolation or smoothing of gaze");
-        check(TrackingData.bytes(packets.get(3)).getFloat(45)==-0.4f,"Every intermediate raw gaze is forwarded");
-        check(TrackingData.bytes(packets.get(4)).getFloat(45)==0.7f,"Every eye frame in the batch is forwarded in order");
+        check(TrackingData.bytes(packets.get(2)).getFloat(55)==0.3f,"No interpolation or smoothing of gaze");
+        check(TrackingData.bytes(packets.get(3)).getFloat(55)==-0.4f,"Every intermediate raw gaze is forwarded");
+        check(TrackingData.bytes(packets.get(4)).getFloat(55)==0.7f,"Every eye frame in the batch is forwarded in order");
         pump.accept(Collections.emptyList(),Collections.singletonList(face(base+4*step,0.9f)),base+4*step,packets::add);
         check(packets.size()==6&&packets.get(5)[0]=='F',"Face-only update is forwarded too");
-        check(TrackingData.bytes(packets.get(5)).getFloat(37)==0.9f,"Raw jaw value preserved");
+        check(TrackingData.bytes(packets.get(5)).getFloat(47)==0.9f,"Raw jaw value preserved");
         pump.accept(Collections.emptyList(),Collections.emptyList(),base+5*step,packets::add);
         check(packets.size()==6,"No synthetic duplicate events on empty poll");
         FramePump burst=new FramePump();List<byte[]> burstPackets=new ArrayList<>();
@@ -78,7 +78,7 @@ public final class CadenceTest {
         check(burstPackets.size()==113,"90 eye + 23 facial frames survive a batched mixed-rate stream");
         int eyePackets=0;
         for(byte[] burstPacket:burstPackets)if(burstPacket[0]=='E'){
-            check(TrackingData.bytes(burstPacket).getFloat(45)==eyePackets/100f,"Burst preserves order/raw values");eyePackets++;
+            check(TrackingData.bytes(burstPacket).getFloat(55)==eyePackets/100f,"Burst preserves order/raw values");eyePackets++;
         }
         check(eyePackets==90,"Every eye frame is forwarded individually");
         ByteBuffer memory=ring(8);TrackingBuffer.Cursor cursor=new TrackingBuffer.Cursor(memory,200,168);

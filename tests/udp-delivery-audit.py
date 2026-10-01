@@ -1,7 +1,8 @@
-"""Compare complete, ordered UDP delivery against the APK's sender ledger (fork split protocol)."""
+"""Compare complete, ordered UDP delivery against the APK's sender ledger (BridgeSplit protocol)."""
 import argparse
 import hashlib
 import json
+import os
 import pathlib
 import re
 import socket
@@ -16,6 +17,7 @@ parser.add_argument('--output', default='evidence/video-analysis/delivery-audit.
 parser.add_argument('--adb', default='adb', help='ADB command or absolute executable path')
 args = parser.parse_args()
 target = (args.headset, 9030)
+SUBSCRIBE = b'PXR_SUB id=' + os.urandom(8).hex().encode() + b' mask=3'
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', 9030))
 sock.settimeout(0.1)
@@ -60,9 +62,12 @@ try:
             continue
         if data[:8] == b'PXR_MODE':
             modes += 1
+            if stopping_at is None: sock.sendto(SUBSCRIBE, target)  # No data before a subscription.
             continue
-        is_eye = len(data) == 73 and data[0:1] == b'E'
-        is_face = len(data) == 225 and data[0:1] == b'F'
+        if data[:11] == b'PXR_SUB_ACK':
+            continue
+        is_eye = len(data) == 83 and data[0:1] == b'E'
+        is_face = len(data) == 227 and data[0:1] == b'F'
         if not (is_eye or is_face):
             malformed += 1
             continue

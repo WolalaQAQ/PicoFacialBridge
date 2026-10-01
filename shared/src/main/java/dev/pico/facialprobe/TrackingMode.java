@@ -44,9 +44,9 @@ public final class TrackingMode {
         return new Info(rooted, modulePresent, gateOn, rooted && modulePresent && gateOn, plugin);
     }
 
-    /** The control datagram the bridge sends; stock modules ignore its length and keep working. */
+    /** The control datagram the bridge sends; it also identifies a BridgeSplit peer to the PC. */
     public static String advertise(Info info) {
-        return PREFIX + " v=1 mode=" + info.label + " rooted=" + (info.rooted ? 1 : 0)
+        return PREFIX + " mode=" + info.label + " rooted=" + (info.rooted ? 1 : 0)
                 + " enhance=" + (info.enhanceModule ? 1 : 0) + " gate=" + (info.gateOn ? 1 : 0)
                 + " plugin=" + info.plugin;
     }

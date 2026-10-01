@@ -1,15 +1,18 @@
-"""LAN receiver for the fork's split protocol; no ADB or PICO Connect in the data path.
+"""LAN receiver for the BridgeSplit protocol; no ADB or PICO Connect in the data path.
 
-Wire format (fork-only, both ends are this repo):
-  'E' + 72-byte eye frame      -> 73 bytes
-  'F' + 224-byte facial frame  -> 225 bytes
+Subscribes to both channels after PXR_MODE. Wire format (19-byte header, little-endian):
+  'E' native eye frame         -> 83 bytes
+  'F' all 52 facial shapes     -> 227 bytes
 """
 import argparse
 import json
+import os
 import pathlib
 import socket
 import struct
 import time
+
+SUBSCRIBE = b'PXR_SUB id=' + os.urandom(8).hex().encode() + b' mask=3'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--headset', help='Headset IPv4 shown in the APK; required unless --multicast is used')
@@ -60,13 +63,16 @@ try:
             continue
         if data[:8] == b'PXR_MODE':
             modes += 1
+            sock.sendto(SUBSCRIBE, peer)  # Bridge sends no tracking data before a subscription.
             continue
-        if len(data) == 73 and data[0:1] == b'E':
-            timestamp = struct.unpack_from('<Q', data, 1)[0]
-            left_status, right_status, combined_status = struct.unpack_from('<3I', data, 9)
-            gaze = struct.unpack_from('<3f', data, 45)
-            openness = struct.unpack_from('<2f', data, 57)
-            pupil = struct.unpack_from('<2f', data, 65)
+        if data[:11] == b'PXR_SUB_ACK':
+            continue
+        if len(data) == 83 and data[0:1] == b'E':
+            timestamp = struct.unpack_from('<Q', data, 11)[0]
+            left_status, right_status, combined_status = struct.unpack_from('<3I', data, 19)
+            gaze = struct.unpack_from('<3f', data, 55)
+            openness = struct.unpack_from('<2f', data, 67)
+            pupil = struct.unpack_from('<2f', data, 75)
             eye_packets += 1
             if last_gaze is not None and gaze != last_gaze:
                 gaze_changes += 1
@@ -76,10 +82,10 @@ try:
                 print(f'eye ts={timestamp} status={left_status}/{right_status}/{combined_status} gaze={gaze} open={openness} pupil={pupil}', flush=True)
                 next_report = now + 5
             continue
-        if len(data) == 225 and data[0:1] == b'F':
-            timestamp = struct.unpack_from('<Q', data, 1)[0]
-            valid_eye, valid_face = struct.unpack_from('<2f', data, 217)
-            face = struct.unpack_from('<52f', data, 9)
+        if len(data) == 227 and data[0:1] == b'F':
+            timestamp = struct.unpack_from('<Q', data, 11)[0]
+            valid_eye, valid_face = data[2] & 1, (data[2] >> 1) & 1
+            face = struct.unpack_from('<52f', data, 19)
             face_packets += 1
             if last_face is not None and face != last_face:
                 face_changes += 1

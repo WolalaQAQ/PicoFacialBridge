@@ -5,7 +5,7 @@ English | [简体中文](README_zh.md)
 [![Android CI](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml/badge.svg)](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Use your **PICO 4 Pro's eye and face tracking in VRCFaceTracking**, without rooting the headset. PicoFacialBridge is an Android app that reads the headset's tracking data and forwards it over your local network to a matching PicoFacialDataModule fork.
+Use your **PICO 4 Pro's eye and face tracking in VRCFaceTracking**, without rooting the headset. PicoFacialBridge is an Android app that reads the headset's tracking data and forwards it over your local network to the companion UnifiedPicoModule.
 
 **[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues) · [Release guide](docs/RELEASING.md)**
 
@@ -15,7 +15,7 @@ Use your **PICO 4 Pro's eye and face tracking in VRCFaceTracking**, without root
 - Forward raw eye and face samples independently, without added smoothing or interpolation.
 - Choose eye tracking, face tracking, or both; see each stream's actual transmission rate.
 - Switch between English and Chinese in the app. Language and transmission preferences are saved.
-- Connect to the matching [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule) using automatic discovery or a configured headset IP.
+- Connect to the companion UnifiedPicoModule using automatic discovery or a configured headset IP; only the channels the PC subscribes to are sent.
 - Detect the tracking mode automatically and show it: **normal** on a stock, rootless headset, **enhanced** when a companion enhancement module is active. Enhanced mode forwards true per-eye gaze and real pupil diameter when the module provides them; normal mode keeps the fused gaze and the real per-eye openness the firmware exposes without the module.
 
 No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is optional for installation/debugging, not daily use. You do not need to install the original daemon alongside this app.
@@ -26,7 +26,7 @@ No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is opt
 | --- | --- |
 | Headset | **PICO 4 Pro** with working eye and face tracking |
 | Verified firmware | **PICO OS 5.13.7**, Android 10 / API 29, arm64-v8a |
-| PC | Windows with [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) and the matching [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule) (see setup below) |
+| PC | Windows with [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) and the companion UnifiedPicoModule (see setup below) |
 | Network | PC and headset on the same trusted LAN; UDP 9030 reachable |
 | PCVR streaming | Tested working alongside **Virtual Desktop (VD)** |
 | VRChat use | An avatar configured for face tracking and VRChat OSC enabled |
@@ -37,7 +37,7 @@ No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is opt
 
 ## Quick start
 
-> **v0.3.0 is a pre-release.** It speaks a fork-only split protocol, so it needs the matching module fork from step 2 and is **not** a drop-in upgrade from v0.2.0. Real-headset acceptance is still in progress; [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) remains the latest stable release.
+> **v0.3.0 is a pre-release.** It speaks the BridgeSplit protocol, so it needs the companion UnifiedPicoModule from step 2 and is **not** a drop-in upgrade from v0.2.0. A first real-headset acceptance round passed on 2026-10-01 (subscription and ACK, all four effective-channel combinations, epoch agreement, cache clearing on switch changes, pause with both switches off, missing-frame to neutral, and application-restart recovery); a full headset reboot, the legacy daemon and long-run stability are still unverified. [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) remains the latest stable release.
 
 ### 1. Install the headset app
 
@@ -56,32 +56,32 @@ No root, Magisk, Shizuku, PICO Connect or OpenXR session is required. ADB is opt
 
 ### 2. Set up VRCFaceTracking
 
-**This release uses a fork-only split protocol. Upstream module releases and the old daemon are incompatible.** Use the matching [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule); a stock module ZIP is not a substitute.
+**This release uses the BridgeSplit protocol. The upstream PicoFacialDataModule, the earlier PicoFacialDataModule fork and the old daemon are incompatible.** Use the companion **UnifiedPicoModule**.
 
-1. Build the matching fork module from [WolalaQAQ/PicoFacialDataModule](https://github.com/WolalaQAQ/PicoFacialDataModule) (follow its README; no fork release is published yet). It must be the fork build that speaks the split protocol, not an upstream release.
-2. In VRCFaceTracking, open **Module Registry**, click **+**, and select that module ZIP. Back up existing module settings before replacing an old installation; do not run old and new Pico modules together.
+1. Build UnifiedPicoModule from source following its README (no release is published yet), producing the module ZIP.
+2. In VRCFaceTracking, open **Module Registry** and use **Install Module from .zip** to select that ZIP, then fully exit and restart VRCFaceTracking. Back up existing module settings first, and do not load more than one PICO module at a time.
 3. Start PicoFacialBridge and VRCFaceTracking on the same LAN. No daemon is needed. Root is optional, only for enhanced capabilities.
 
-If discovery fails, close VRCFaceTracking and set `IP` to the headset IPv4 shown in the bridge. Edit or merge these fields in `PicoFacialDataModule.json` under:
+If discovery fails, close VRCFaceTracking and set `Bridge.IP` to the headset IPv4 shown in the bridge. Edit `UnifiedPicoModule.json` under:
 
 ```text
-%APPDATA%\VRCFaceTracking\CustomLibs\61ee1324-fd45-42f1-9636-8e28717cf6db\
+%APPDATA%\VRCFaceTracking\CustomLibs\8322e16d-c38b-42f0-8d35-68f27227b442\
 ```
 
 ```json
 {
-  "DisableEyeTracking": false,
-  "DisableFaceTracking": false,
-  "IP": "192.168.1.123"
+  "Bridge": {
+    "IP": "192.168.1.123"
+  }
 }
 ```
 
-Replace the example IP; preserve other existing settings. An empty `IP` uses discovery. Restart VRCFaceTracking after editing. The headset IP may change when Wi-Fi reconnects.
+This shows only the field to change: keep `ConfigVersion` and every other existing setting in the file. Replace the example IP; `null` uses discovery. Restart VRCFaceTracking after editing. The headset IP may change when Wi-Fi reconnects.
 
 ### 3. Use it
 
 1. Open the bridge, tap **Start**, and wear the headset.
-2. Start VRCFaceTracking with the Pico module. Check for a connected client and nonzero transmission rates when tracking is active.
+2. Start VRCFaceTracking with UnifiedPicoModule. Check for a connected client and nonzero transmission rates when tracking is active.
 3. Start your usual PCVR/VRChat setup, enable **OSC** in VRChat, and use a compatible avatar. The bridge forwards tracking only; it is not a video streamer or an avatar configuration tool.
 4. When finished, tap **Stop** in the app or its notification. After rebooting, open the app and start it again; there is no boot auto-start.
 
@@ -102,7 +102,34 @@ The bridge can run alongside Virtual Desktop. Its foreground service keeps forwa
 
 Both permissions are required even in single-channel mode because PICO uses a shared algorithm. These are **not individual camera-power controls**. The receiver may hold the last gaze/expression after a stream stops; disabling transmission does not force a neutral avatar pose.
 
-Eye-only transmission still sends low-rate `F` datagrams carrying the facial blendshapes the eye parser needs (blink fallback, brow, EyeWide/EyeSquint) with mouth data and face validity cleared. Facial output stays off and **Face Hz** stays 0.
+The bridge only sends the channels UnifiedPicoModule subscribes to: transmitted channels are the intersection of the local switches and the host-owned, configuration-enabled PC channels, and **no tracking data is sent before a subscription is acknowledged**. Eye-only sends an 83-byte native eye packet and a 95-byte eye morphology auxiliary packet (blink fallback, brows, EyeWide/EyeSquint), not mouth shapes. Face-only sends only a 151-byte face packet, without native eyes, eye auxiliary packets or zeroed eye placeholders. Auxiliary samples retain the original facial source cadence and **Face Hz** remains 0. Both channels use native eye and full face packets without an extra auxiliary packet. Diagnostics report subscription, effective mask and epoch. STOP, timeout and rediscovery clear subscriptions; mode announcements and heartbeats continue. With no effective channels, capture pauses while control stays available. A first hardware acceptance round passed on 2026-10-01 (application restart: headset UI back to Running in about 6 s, PC re-subscription about 33 s); a full headset reboot and the legacy daemon co-existence are still unverified.
+
+### BridgeSplit wire format (first hardware acceptance round passed)
+
+UDP 9030. Every datagram has a **19-byte** header: offset 0 tag (`E`/`A`/`F`), 1 effective channel mask (eye=1/face=2), 2 morphology validity (eye=1/face=2, subset of mask, always 0 for `E`), 3 positive int64 epoch, 11 positive int64 original source timestamp. Multi-byte fields are little-endian; floats are IEEE 754 binary32.
+
+| Tag / total bytes | Payload starting at 19 |
+|---|---|
+| `E` / **83** | Left/right/combined uint32 status at 19/23/27; gaze float3 at 31/43/55; openness at 67/71; vendor pupil at 75/79 (PC divides by 10 for mm). Defined status bits: 0x002, 0x004, 0x100, 0x800 |
+| `A` / **95** | 19 eye morphology float32; mask=1 only, face invalid |
+| `F` / **151** | 33 non-eye shape float32; mask=2 only, eye validity clear; no eye placeholders |
+| `F` / **227** | 52 PICO shape float32 in original order; mask=3 only |
+
+The stable `A` slot order is `0,2,3,4,11,12,16,26,28,30,31,35,36,38,41,44,45,46,47`: EyeLookDownL, EyeLookInL, BrowInnerUp, BrowDownR, EyeLookInR, EyeLookDownR, BrowDownL, EyeSquintL, EyeBlinkL, BrowOuterUpL, EyeLookUpL, EyeLookUpR, BrowOuterUpR, EyeBlinkR, EyeSquintR, EyeLookOutL, EyeLookOutR, EyeWideR, EyeWideL. `A`/`F` retain the original facial timestamp, without synthesis or interpolation.
+
+Face-only `F` slot order is `1,5,6,7,8,9,10,13,14,15,17,18,19,20,21,22,23,24,25,27,29,32,33,34,37,39,40,42,43,48,49,50,51`: all 52 slots except the 19 eye morphology slots above, in ascending original index order.
+
+Exact ASCII controls, single spaces and fixed key order, no terminator (angle brackets are placeholders):
+
+```text
+PXR_MODE mode=<normal|enhance> rooted=<0|1> enhance=<0|1> gate=<0|1> plugin=<off|left|right|dual>
+PXR_SUB id=<16 lowercase hex> mask=<0..3>
+PXR_SUB_ACK id=<same id> mask=<effective mask> epoch=<16 lowercase hex>
+```
+
+After `DISCOVER_DAEMON`, the bridge sends `PXR_MODE` immediately, on mode changes and every 10 seconds, alongside the `MARCO\0`/`POLO` heartbeat. `PXR_SUB` (34 bytes) and `PXR_SUB_ACK` (61 bytes) are accepted only from the locked peer; id and demand stay fixed until rediscovery. Repeated requests are idempotent; another id/demand cannot replace the session. PC retries unconfirmed requests each second; the bridge ACKs immediately and repeats alongside mode announcements. Unknown fields/extra whitespace are rejected.
+
+Epoch advances on new subscription or local switch changes. ACK clears receiver caches; stale epochs/mismatched masks cannot revive disabled channels. Both channels never add `A`, avoiding overwriting a low-rate mouth cache. All floats must be finite. A single non-finite morphology sentinel only becomes zero for that slot, without clearing the eye/face group validity; non-finite native eye fields become zero with the matching gaze/openness/pupil validity cleared, delivering invalidation rather than freezing output. Length/status bits/positive times are validated strictly. Logs expose negotiation/rates/validity, not raw samples.
 
 ## Troubleshooting
 
@@ -163,12 +190,12 @@ Windows also has `tests/run-unit.ps1`, `run-protocol.ps1`, `run-cadence.ps1` and
 ```text
 PICO tracking service → Binder / read-only shared memory
                      → Android foreground service → LAN UDP
-                     → PicoFacialDataModule → VRCFaceTracking → VRChat OSC
+                     → UnifiedPicoModule → VRCFaceTracking → VRChat OSC
 ```
 
 `bridge/` contains the app and UDP service; `shared/` contains JNI, parsing and forwarding logic; `probe/` is a developer diagnostic app; `tests/` holds host/device/network checks. Version changes are recorded in the [changelog](CHANGELOG.md).
 
-The protocol uses UDP port **9030** and multicast discovery at **239.255.255.250**. Eye and facial updates are separate tagged datagrams sent at their own source rates: `'E'` + 72 bytes (eye validity, gaze vectors, openness, pupil) and `'F'` + 224 bytes (the 52 used blendshapes and the eye/face validity flags). Only the fields the receiver reads are carried, so the ~90 Hz eye stream never re-sends the ~23 Hz facial frame and the unread gaze points, position guides, foveated slots and always-zero fields are dropped (about 60 KB/s down to about 12 KB/s). A separate short ASCII control datagram (`PXR_MODE ...`) advertises the detected mode. Inside the eye datagram, the vendor's fixed-depth per-eye split marker is stripped in normal mode so the receiver keeps using the fused gaze; when the enhancement module is active and really computes independent per-eye gaze, the bridge leaves those validity bits intact. This is a fork-only wire format: the bridge and the module must be updated together.
+The protocol uses UDP port **9030** and multicast discovery at **239.255.255.250**. Eye and facial updates are separate tagged datagrams sent at their own source rates, carrying only the subscribed channels and only the fields the receiver reads, so the ~90 Hz eye stream never re-sends the ~23 Hz facial frame and the unread gaze points, position guides, foveated slots and always-zero fields are dropped. A short ASCII control datagram (`PXR_MODE ...`) advertises the detected mode. Inside the eye datagram, the vendor's fixed-depth per-eye split marker is stripped in normal mode so the receiver keeps using the fused gaze; when the enhancement module is active and really computes independent per-eye gaze, the bridge leaves those validity bits intact. See [BridgeSplit wire format](#bridgesplit-wire-format-not-yet-accepted-on-hardware); the bridge and UnifiedPicoModule must be updated together.
 
 Issues and pull requests are welcome. Preserve protocol compatibility and raw per-stream cadence, add tests for behavioral changes, and keep both READMEs and UI translations in sync. Never commit keys, local SDK paths, `reference/`, `evidence/`, raw biometric captures or intermediate plans/research/test transcripts. Only the two public release guides under `docs/` are tracked by default.
 

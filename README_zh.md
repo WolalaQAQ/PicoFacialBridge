@@ -5,7 +5,7 @@
 [![Android CI](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml/badge.svg)](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-让 **PICO 4 Pro 的眼动与面部追踪接入 VRCFaceTracking**，无需 Root。PicoFacialBridge 是安装在头显上的 Android 应用，读取头显追踪数据，通过局域网转发给配套的 PicoFacialDataModule fork。
+让 **PICO 4 Pro 的眼动与面部追踪接入 VRCFaceTracking**，无需 Root。PicoFacialBridge 是安装在头显上的 Android 应用，读取头显追踪数据，通过局域网转发给配套的 UnifiedPicoModule。
 
 **[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues) · [发布指南](docs/RELEASING_zh.md)**
 
@@ -15,7 +15,7 @@
 - 独立转发眼动和面部原始样本，不额外添加平滑或插值。
 - 支持仅眼追、仅面捕或两路同时传输，并显示各路实际发送速率。
 - 应用内切换中文、英文，保存语言和传输偏好。
-- 使用配套 [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule)，支持自动发现或指定头显 IP。
+- 使用配套 UnifiedPicoModule，支持自动发现或指定头显 IP；只发送 PC 订阅的通道。
 - 自动检测追踪模式并显示：普通头显（免 root）为**普通模式**，检测到增强模块生效时进入**增强模式**。增强模式在模块提供数据时转发真正的逐眼视线与真实瞳孔直径；普通模式保留融合视线，以及固件本身就会给出的真实逐眼睁眼度。
 
 无需 Root、Magisk、Shizuku、PICO Connect，也不占用 OpenXR session。ADB 仅是安装和调试的可选工具，日常使用不需要。使用此应用时，不必另外安装原项目的 daemon。
@@ -26,7 +26,7 @@
 | --- | --- |
 | 头显 | 具备正常眼动、面部追踪功能的 **PICO 4 Pro** |
 | 已验证固件 | **PICO OS 5.13.7**，Android 10 / API 29，arm64-v8a |
-| PC | Windows，安装 [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) 和配套 [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule)（见下方配置步骤） |
+| PC | Windows，安装 [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) 和配套 UnifiedPicoModule（见下方配置步骤） |
 | 网络 | PC 与头显位于同一可信局域网，UDP 9030 可达 |
 | PCVR 串流 | 已实测可与 **Virtual Desktop（VD）** 同时使用 |
 | VRChat | 已配置面捕的 Avatar，并启用 VRChat OSC |
@@ -37,7 +37,7 @@
 
 ## 快速开始
 
-> **v0.3.0 是预发布版本。**它使用 fork 专用的分包协议，因此必须搭配第 2 步的配套模块 fork，且**不能**从 v0.2.0 直接覆盖升级。实机验收仍在进行中；[v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) 仍是最新稳定版。
+> **v0.3.0 是预发布版本。**它使用 BridgeSplit 协议，因此必须搭配第 2 步的配套 UnifiedPicoModule，且**不能**从 v0.2.0 直接覆盖升级。2026-10-01 已通过第一轮实机验收（订阅与 ACK、四种有效通道组合、两端 epoch 一致、切换时清理缓存、两路全关暂停、缺帧转 neutral、应用重启恢复）；整机重启、旧 daemon 共存与长时稳定性仍未验证。[v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) 仍是最新稳定版。
 
 ### 1. 安装头显应用
 
@@ -56,32 +56,32 @@
 
 ### 2. 配置 VRCFaceTracking
 
-**本版本使用 fork 专用分包协议，不兼容原版模块和旧 daemon。** 请使用配套的 [PicoFacialDataModule fork](https://github.com/WolalaQAQ/PicoFacialDataModule)；上游模块 ZIP 不能替代。
+**本版本使用 BridgeSplit 协议，不兼容上游 PicoFacialDataModule、早期 PicoFacialDataModule fork 和旧 daemon。** 请使用配套的 **UnifiedPicoModule**。
 
-1. 按 [WolalaQAQ/PicoFacialDataModule](https://github.com/WolalaQAQ/PicoFacialDataModule) 的说明自行构建配套 fork 模块（目前尚未发布 fork Release）；必须支持分包协议，不要使用上游 Release。
-2. 在 VRCFaceTracking 的 **Module Registry** 中点击 **+**，选择该模块 ZIP。替换旧安装前备份模块配置，不要同时加载新旧 Pico 模块。
+1. 按 UnifiedPicoModule 的 README 从源码自行构建（目前尚未发布 Release），得到模块 ZIP。
+2. 在 VRCFaceTracking 的 **Module Registry** 中使用 **Install Module from .zip** 选择该 ZIP，然后完全退出并重启 VRCFaceTracking。替换旧安装前备份模块配置，不要同时加载多个 PICO 模块。
 3. 在同一局域网启动 PicoFacialBridge 和 VRCFaceTracking。无需 daemon；Root 仅用于可选增强能力。
 
-如果发现失败，先关闭 VRCFaceTracking，将 `IP` 设置为 bridge 界面显示的头显 IPv4。在以下目录的 `PicoFacialDataModule.json` 中修改或合并这些字段：
+如果发现失败，先关闭 VRCFaceTracking，将 `Bridge.IP` 设置为 bridge 界面显示的头显 IPv4。修改以下目录中的 `UnifiedPicoModule.json`：
 
 ```text
-%APPDATA%\VRCFaceTracking\CustomLibs\61ee1324-fd45-42f1-9636-8e28717cf6db\
+%APPDATA%\VRCFaceTracking\CustomLibs\8322e16d-c38b-42f0-8d35-68f27227b442\
 ```
 
 ```json
 {
-  "DisableEyeTracking": false,
-  "DisableFaceTracking": false,
-  "IP": "192.168.1.123"
+  "Bridge": {
+    "IP": "192.168.1.123"
+  }
 }
 ```
 
-替换示例 IP，并保留文件中其他已有设置。`IP` 留空时使用自动发现。修改后重启 VRCFaceTracking；头显重新连接 Wi-Fi 后，IP 可能变化。
+这里只列出要改的字段：保留文件里的 `ConfigVersion` 和其他已有设置。替换示例 IP；`null` 时使用自动发现。修改后重启 VRCFaceTracking；头显重新连接 Wi-Fi 后，IP 可能变化。
 
 ### 3. 日常使用
 
 1. 打开 bridge，点击 **启动 / Start**，戴上头显。
-2. 启动加载了 Pico 模块的 VRCFaceTracking。追踪活动时，确认 bridge 显示已连接的客户端和非零发送速率。
+2. 启动加载了 UnifiedPicoModule 的 VRCFaceTracking。追踪活动时，确认 bridge 显示已连接的客户端和非零发送速率。
 3. 启动平时使用的 PCVR／VRChat 环境，在 VRChat 中开启 **OSC**，使用兼容的 Avatar。Bridge 只负责追踪数据转发，不负责画面串流或配置 Avatar。
 4. 结束时，在应用或常驻通知中点击 **停止 / Stop**。头显重启后，需要重新打开应用并启动；本项目不会开机自启。
 
@@ -102,7 +102,34 @@ Bridge 可以与 Virtual Desktop 同时运行。前台服务用于在应用窗�
 
 PICO 共用追踪算法，因此仅传一路时仍需要两项权限。这些开关**不是独立摄像头电源开关**。接收端可能在某一路停止后保持最后的视线／表情，关闭传输不会让 Avatar 自动恢复中性姿态。
 
-仅眼追传输仍会发送低频 `F` 数据报，保留眼动解析需要的面部形态键（眨眼回退、眉毛、EyeWide/EyeSquint），并清空嘴部数据与面部有效标志；面捕输出保持关闭，**Face Hz** 保持 0。
+Bridge 只发送 UnifiedPicoModule 订阅的通道：实际发送 = 本地传输开关与 PC 宿主可用、配置启用通道的交集，**订阅确认前不发送任何追踪数据**。仅眼追发送 83 字节原生眼帧和 95 字节眼周形态辅助帧（眨眼回退、眉毛、EyeWide/EyeSquint），不发嘴部形态；仅面捕只发 151 字节面部帧，不发原生眼帧、辅助帧或清零的眼周占位字段。辅助仍按原始面部源频率发送，**面捕 Hz** 保持 0。双路使用原生眼帧与完整面部帧，不另发辅助帧。订阅、有效发送 mask 与 epoch 可在诊断日志确认；停止、超时、重发现会清理订阅，模式通告与心跳保持。全部有效通道关闭时暂停采集但保留控制。2026-10-01 已通过第一轮实机验收（应用重启：头显界面约 6 秒回到“运行中”，PC 侧约 33 秒重新订阅）；整机重启与旧 daemon 共存仍未验证。
+
+### BridgeSplit 线格式（已通过第一轮实机验收）
+
+UDP 9030。每个数据报共用 **19 字节**头部：偏移 0 tag（`E`/`A`/`F`）、1 有效通道 mask（眼=1/面=2）、2 形态有效位（眼=1/面=2，必须是 mask 子集，`E` 为 0）、3 正 int64 epoch、11 正 int64 原始 timestamp。多字节字段均 little-endian；float 为 IEEE 754 binary32。
+
+| tag / 总长度 | 偏移 19 起的 payload |
+|---|---|
+| `E` / **83** | 19/23/27 左/右/combined uint32 状态；31/43/55 gaze float3；67/71 openness；75/79 pupil vendor 值（PC /10 转 mm）。允许状态位 0x002、0x004、0x100、0x800 |
+| `A` / **95** | 19 个眼周 shape float32；仅 mask=1，face 无效 |
+| `F` / **151** | 33 个非眼周 shape float32；仅 mask=2，眼有效位为 0，不发送眼周占位字段 |
+| `F` / **227** | 52 个 PICO shape float32，按原顺序；仅 mask=3 |
+
+`A` 的稳定槽顺序为 `0,2,3,4,11,12,16,26,28,30,31,35,36,38,41,44,45,46,47`，依次为 EyeLookDownL、EyeLookInL、BrowInnerUp、BrowDownR、EyeLookInR、EyeLookDownR、BrowDownL、EyeSquintL、EyeBlinkL、BrowOuterUpL、EyeLookUpL、EyeLookUpR、BrowOuterUpR、EyeBlinkR、EyeSquintR、EyeLookOutL、EyeLookOutR、EyeWideR、EyeWideL。`A`/`F` 的 timestamp 来自原始面部样本，不合成或插值。
+
+仅面捕 `F` 的槽顺序为 `1,5,6,7,8,9,10,13,14,15,17,18,19,20,21,22,23,24,25,27,29,32,33,34,37,39,40,42,43,48,49,50,51`，即 52 槽中剔除上述 19 个眼周槽后按原编号升序排列。
+
+控制报文为精确 ASCII，单空格、固定字段顺序、无终止符（尖括号是占位符）：
+
+```text
+PXR_MODE mode=<normal|enhance> rooted=<0|1> enhance=<0|1> gate=<0|1> plugin=<off|left|right|dual>
+PXR_SUB id=<16位小写hex> mask=<0..3>
+PXR_SUB_ACK id=<同一id> mask=<有效mask> epoch=<16位小写hex>
+```
+
+收到 `DISCOVER_DAEMON` 后，Bridge 立即发送 `PXR_MODE`，之后在模式变化时和每 10 秒重发，并保持 `MARCO\0`/`POLO` 心跳。`PXR_SUB`（34 字节）与 `PXR_SUB_ACK`（61 字节）只接受当前锁定 peer；需求与 id 固定至下次发现，重复请求幂等，新 id/不同需求不能覆盖会话。PC 未确认时每秒重试，Bridge 立即回复 ACK，并随模式通告重发。未知字段/额外空白不接受。
+
+epoch 在新订阅或本地开关变化时推进；接收端按 ACK 清缓存、拒绝旧 epoch 或不匹配 mask，关掉通道不残留在途数据。双路不另发 `A`，避免眼辅助覆盖低频嘴部。所有 float 必须有限；形态中单个非有限厂商值只把该槽置 0，不清除整组眼/面有效位；原生眼帧中的非有限值归零并清对应的视线/睁眼度/瞳孔有效位，让接收端看到失效，不冻结旧帧。数据长度、状态位和正时间严格校验。日志仅记录协商/频率/有效性，不输出原始样本。
 
 ## 常见问题
 
@@ -163,12 +190,12 @@ Windows 也可使用 `tests/run-unit.ps1`、`run-protocol.ps1`、`run-cadence.ps
 ```text
 PICO 追踪服务 → Binder / 只读共享内存
              → Android 前台服务 → 局域网 UDP
-             → PicoFacialDataModule → VRCFaceTracking → VRChat OSC
+             → UnifiedPicoModule → VRCFaceTracking → VRChat OSC
 ```
 
 `bridge/` 包含应用与 UDP 服务；`shared/` 包含 JNI、解析和转发逻辑；`probe/` 是开发者诊断应用；`tests/` 包含主机、设备和网络检查。版本变化见[更新日志](CHANGELOG.md)。
 
-协议使用 UDP **9030** 端口和 **239.255.255.250** 多播发现地址。眼动与面捕是两条按各自源频率发送的带标签数据报：`'E'` + 72 字节（眼动有效位、视线向量、睁眼度、瞳孔）和 `'F'` + 224 字节（实际用到的 52 个形态键和眼/面有效标志）。只携带接收端会读的字段，因此约 90 Hz 的眼动流不会再重复携带约 23 Hz 的面捕帧，未被读取的 3D 视线点、position guide、foveated 槽和恒 0 字段全部丢弃（约 60 KB/s 降到约 12 KB/s）。另有独立的简短 ASCII 控制报文（`PXR_MODE ...`）通告检测到的模式。眼动数据报里，普通模式下仍会屏蔽厂商的固定深度拆分分眼标记，让接收端继续使用融合视线；当增强模块生效、确实给出独立逐眼视线时，Bridge 会保留这些有效位。这是 fork 专用的线格式：Bridge 与模块必须一起更新。
+协议使用 UDP **9030** 端口和 **239.255.255.250** 多播发现地址。眼动与面捕是按各自源频率发送的带标签数据报，只携带已订阅的通道和接收端会读的字段，因此约 90 Hz 的眼动流不会再重复携带约 23 Hz 的面捕帧，未被读取的 3D 视线点、position guide、foveated 槽和恒 0 字段全部丢弃。另有简短 ASCII 控制报文（`PXR_MODE ...`）通告检测到的模式。眼动数据报里，普通模式下仍会屏蔽厂商的固定深度拆分分眼标记，让接收端继续使用融合视线；当增强模块生效、确实给出独立逐眼视线时，Bridge 会保留这些有效位。详见 [BridgeSplit 线格式](#bridgesplit-线格式未实机验收)；Bridge 与 UnifiedPicoModule 必须一起更新。
 
 欢迎提交 Issue 和 Pull Request。修改时请保持协议兼容及各路原始发送节奏，为行为变化补充测试，并同步两份 README 和 UI 翻译。不要提交密钥、本机 SDK 路径、`reference/`、`evidence/`、原始生物特征采样或开发过程中的计划、研究、测试流水账。`docs/` 默认仅跟踪两份公开发布指南。
 

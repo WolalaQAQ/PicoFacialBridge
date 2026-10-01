@@ -1,19 +1,21 @@
 ## [0.3.0] - 2026-10-01
 ### Features
 - Fix split-stream recovery: eye validity no longer depends on the cached facial validity flag; expire facial-derived eye data after 250 ms and clear it on reconnect.
-- Preserve low-rate eye blendshapes in eye-only transmission, with mouth data and face validity cleared. Reply with the mode on every accepted discovery, including same-endpoint reconnects.
 - Detect the tracking mode automatically on the headset (normal when rootless or without an active enhancement module, enhanced when rooted with one) and show it in the app.
-- Advertise the detected mode to the receiver on a separate `PXR_MODE` control datagram, sent when a client connects, whenever the detected mode changes, and at least every 10 seconds as a keep-alive (instead of a fixed 2-second repeat).
-- Send eye and facial updates as separate tagged datagrams (`'E'` + 72 bytes, `'F'` + 224 bytes) at their own source rates instead of one fixed 536-byte packet, carrying only the fields the receiver reads. The eye stream (~90 Hz) no longer re-sends the facial frame (~23 Hz) on every update, and the unread gaze points, position guides, foveated slots and always-zero fields are dropped: wire bytes fall from about 60 KB/s to about 12 KB/s.
+- Advertise the detected mode to the receiver on a separate `PXR_MODE` control datagram, sent on every accepted discovery (including same-endpoint reconnects), whenever the detected mode changes, and at least every 10 seconds as a keep-alive (instead of a fixed 2-second repeat).
+- Speak the BridgeSplit protocol instead of one fixed 536-byte packet: the PC subscribes with `PXR_SUB` after `PXR_MODE`, and the bridge sends nothing until the subscription is acknowledged. Transmitted channels are the local switches AND the PC request, with an epoch that advances on every change.
+- Send eye and facial updates as separate tagged datagrams with a 19-byte header, at their own source rates and carrying only the subscribed fields: `E` 83 bytes of native eyes, `A` 95 bytes of eye morphology for eye-only (blink fallback, brow, EyeWide/EyeSquint; Face Hz stays 0), `F` 151 bytes for face-only and 227 bytes for both. The eye stream (~90 Hz) no longer re-sends the facial frame (~23 Hz), and the unread gaze points, position guides, foveated slots and always-zero fields are dropped.
+- Zero a single non-finite morphology value without invalidating its whole eye/face group; zero non-finite native eye fields with their own validity cleared.
 - Keep the vendor's per-eye validity bits only when the enhancement module really computes independent per-eye gaze; strip them otherwise, as before.
 ### Design Rationale
 - The enhancement module publishes the state it actually applied as transient namespaced properties, so a removed or disabled module can never leave a stale "enhanced" behind and no persistent system property is written.
 - The mode is a hint, not a trust boundary: the receiver still checks the per-eye and pupil validity bits on every sample.
 - Eye and facial tracking update at very different rates, so the old combined packet re-sent the unchanged half on every update of the other half. Splitting the streams removes that duplication and keeps the fast eye path independent of the slow facial model.
-- The eye parser still needs the slow-rate facial blendshapes (blink fallback, EyeWide, EyeSquint, brow), so the module caches the latest facial frame instead of receiving them at eye rate.
+- The eye parser still needs the slow-rate facial blendshapes (blink fallback, EyeWide, EyeSquint, brow), so eye-only sends them as a compact auxiliary packet at their source rate instead of a full facial frame.
+- The PC subscribes only after `PXR_MODE`, so it never sends unknown control to the legacy daemon, which treats any non-POLO heartbeat reply as a failure.
 ### Notes & Caveats
-- **Pre-release, pending real-headset acceptance.** The split protocol, mode detection and compact framing are host-tested only; headset acceptance and the matched PC module build are still outstanding, so v0.3.0 is published as a GitHub pre-release and does not replace the stable v0.2.0.
-- The wire format is a fork-only change: the bridge and the matching PicoFacialDataModule fork must be updated together, and the upstream module plus the stock 536-byte `picofacialdatadaemon` framing are no longer spoken.
+- **Pre-release.** A first real-headset acceptance round passed on 2026-10-01 (subscription and ACK, all four effective-channel combinations, epoch agreement, cache clearing on switch changes, pause with both switches off, missing-frame to neutral, and application-restart recovery: headset UI about 6 s, PC re-subscription about 33 s). A full headset reboot, legacy-daemon co-existence, long-run stability and avatar output are still unverified, so v0.3.0 stays a GitHub pre-release and does not replace the stable v0.2.0.
+- The wire format is a breaking change: the bridge and the companion UnifiedPicoModule must be updated together. The upstream module, the earlier PicoFacialDataModule fork and the stock 536-byte `picofacialdatadaemon` framing are no longer spoken.
 - Mode detection is firmware-specific and reads no user data. Enhanced mode requires the companion enhancement module; without it the app behaves exactly as before.
 
 ## [0.2.0] - 2026-09-15
