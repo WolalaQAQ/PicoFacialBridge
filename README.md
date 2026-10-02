@@ -9,7 +9,7 @@ PicoFacialBridge is an Android app for the PICO 4 Pro that forwards the headset'
 
 The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy an OpenXR session, and can run alongside streaming software such as Virtual Desktop. ADB is optional for installation and debugging and is not needed for daily use.
 
-**[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
+**[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
 > Version 0.3.0 is a pre-release. It uses the BridgeSplit protocol, so the PC must run UnifiedPicoModule. The earlier PicoFacialDataModule and its forks cannot receive data from this version. If you still need the old protocol, continue to use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0).
 
@@ -21,6 +21,14 @@ The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy 
 - Only the channels the PC has subscribed to are sent, and no tracking data is sent before the subscription is acknowledged.
 - The tracking mode is detected automatically and displayed. A stock headset without the enhancement module runs in normal mode and forwards fused gaze and per-eye openness. When the enhancement module is active, enhanced mode additionally forwards per-eye gaze and pupil diameter.
 - The interface is available in English and Chinese, and the language and transmission settings are saved.
+
+## Normal and enhanced mode
+
+Without any additional component on the headset, the bridge can only forward the fused gaze and the per-eye openness the firmware itself provides. This is normal mode.
+
+On a rooted (Magisk) headset, installing [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) makes the headset output true per-eye gaze and pupil diameter instead. The bridge detects the change automatically and switches to enhanced mode. No extra PC-side configuration is needed for this feature.
+
+PicoET-Enhance works at runtime, modifies no system file and changes no device-wide property, but it currently supports only PICO OS 5.13.7. See that project's README for installation, mode switching and removal.
 
 ## Compatibility
 

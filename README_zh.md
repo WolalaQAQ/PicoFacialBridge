@@ -9,7 +9,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 本应用无需 Root、Magisk、Shizuku 或 PICO Connect，也不占用 OpenXR 会话，可以与 Virtual Desktop 等串流软件同时使用。ADB 仅在安装和调试时可选使用，日常使用不需要。
 
-**[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
+**[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
 > 0.3.0 为预发布版本，使用 BridgeSplit 协议，PC 端必须使用 UnifiedPicoModule。旧版 PicoFacialDataModule 及其分支无法接收该版本的数据。仍需使用旧协议时，请继续使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。
 
@@ -21,6 +21,14 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 - 只发送 PC 端订阅的通道，订阅确认前不发送任何追踪数据。
 - 自动检测并显示追踪模式。未安装增强模块的普通头显为普通模式，转发融合视线与逐眼睁眼度；增强模块生效时为增强模式，额外转发逐眼视线与瞳孔直径。
 - 界面支持中文与英文，语言与传输设置会被保存。
+
+## 普通模式与增强模式
+
+头显没有安装额外组件时，Bridge 只能转发融合视线，以及固件本身就提供的逐眼睁眼度，这是普通模式。
+
+在已 Root（Magisk）的头显上安装 [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) 后，头显会改为输出真实的逐眼视线与瞳孔直径，Bridge 会自动检测到这一变化并切换到增强模式，PC 端不需要为本功能做额外配置。
+
+PicoET-Enhance 在运行期生效，不修改系统文件，也不改动整机属性，但目前只支持 PICO OS 5.13.7 固件。安装、模式切换与卸载方法见该项目的 README。
 
 ## 兼容性
 
