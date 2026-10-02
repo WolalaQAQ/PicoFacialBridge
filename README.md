@@ -11,7 +11,7 @@ The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy 
 
 **[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> Version 0.3.0 uses the BridgeSplit protocol, so the PC must run UnifiedPicoModule. The earlier PicoFacialDataModule and its forks cannot receive data from this version. If you still need the old protocol, use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0).
+> Version 0.3.1 uses the BridgeSplit protocol, so the PC must run UnifiedPicoModule. The earlier PicoFacialDataModule and its forks cannot receive data from this version. If you still need the old protocol, use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0).
 
 ## Features
 
@@ -62,7 +62,7 @@ Recovery after a full headset reboot, long-term stability and avatar behavior in
 2. Sideload it with your usual headset APK installer. Alternatively, enable developer mode and USB debugging on the headset, connect and authorize it, then install with [Android platform-tools](https://developer.android.com/tools/releases/platform-tools):
 
    ```sh
-   adb install -r PicoFacialBridge-v0.3.0-arm64-v8a-debug.apk
+   adb install -r PicoFacialBridge-v0.3.1-arm64-v8a-debug.apk
    ```
 
 3. Open PicoFacialBridge from the headset's 2D app list. Make sure eye and face tracking are enabled in the system settings, tap Start, and grant both tracking permissions the app requests.

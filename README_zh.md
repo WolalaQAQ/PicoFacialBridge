@@ -11,7 +11,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 **[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> 0.3.0 使用 BridgeSplit 协议，PC 端必须使用 UnifiedPicoModule。旧版 PicoFacialDataModule 及其分支无法接收该版本的数据。仍需使用旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。
+> 0.3.1 使用 BridgeSplit 协议，PC 端必须使用 UnifiedPicoModule。旧版 PicoFacialDataModule 及其分支无法接收该版本的数据。仍需使用旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。
 
 ## 功能
 
@@ -62,7 +62,7 @@ PicoET-Enhance 在运行期生效，不修改系统文件，也不改动整机�
 2. 使用常用的头显 APK 安装工具侧载。也可以在头显上启用开发者模式与 USB 调试，连接并授权后，使用 [Android platform-tools](https://developer.android.com/tools/releases/platform-tools) 安装：
 
    ```sh
-   adb install -r PicoFacialBridge-v0.3.0-arm64-v8a-debug.apk
+   adb install -r PicoFacialBridge-v0.3.1-arm64-v8a-debug.apk
    ```
 
 3. 在头显的 2D 应用列表中打开 PicoFacialBridge。确认系统设置中已启用眼动与面部追踪，点击启动，并授予应用请求的两项追踪权限。
@@ -172,7 +172,7 @@ PICO 追踪服务 → Binder / 只读共享内存
 | `probe/` | 开发者诊断应用 |
 | `tests/` | 主机、设备与网络检查 |
 
-版本变化请参阅[更新日志](CHANGELOG.md)，发布流程请参阅[发布指南](docs/RELEASING_zh.md)。
+版本变化请参阅[更新日志](CHANGELOG_zh.md)，发布流程请参阅[发布指南](docs/RELEASING_zh.md)。
 
 ### 协议
 

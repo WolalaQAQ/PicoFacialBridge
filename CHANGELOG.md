@@ -1,5 +1,21 @@
+# Changelog
+
+English | [简体中文](CHANGELOG_zh.md)
+
+## [0.3.1] - 2026-10-03
+
+### Fixed
+- Monitor each required tracking source independently so a healthy stream cannot hide a stalled one from automatic reconnection. Eye-only mode also monitors the auxiliary morphology source; face-only mode does not wait for native eye data. Startup and channel changes retain a ten-second grace interval.
+- Release the diagnostic probe's shared-memory mapping and file descriptor if writing the initial ring snapshot fails.
+- Distinguish locally disabled transmission from a lack of overlap with the PC subscription in the English and Chinese pause messages.
+
+### Validation
+- All 398 existing host checks, translation checks, Bridge/Probe debug builds, Bridge lint and APK distribution checks pass.
+- Single-source stalls, diagnostic write failures and the updated headset UI have not yet been revalidated on hardware.
+
 ## [0.3.0] - 2026-10-01
 ### Features
+- With UnifiedPicoModule, expose the four eye-expression outputs left unmapped by the upstream PicoFacialDataModule parser: `EyeWideLeft/Right` (wide eyes) and `EyeSquintLeft/Right` (squinting). Bridge v0.2.0 already forwarded the corresponding PICO fields; v0.3.0 carries them in facial `F` packets or eye-only auxiliary `A` packets, and the companion module maps them to VRCFT. These mappings do not require enhanced mode or the enhancement module.
 - Fix split-stream recovery: eye validity no longer depends on the cached facial validity flag; expire facial-derived eye data after 250 ms and clear it on reconnect.
 - Detect the tracking mode automatically on the headset (normal when rootless or without an active enhancement module, enhanced when rooted with one) and show it in the app.
 - Advertise the detected mode to the receiver on a separate `PXR_MODE` control datagram, sent on every accepted discovery (including same-endpoint reconnects), whenever the detected mode changes, and at least every 10 seconds as a keep-alive (instead of a fixed 2-second repeat).

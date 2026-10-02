@@ -7,11 +7,11 @@ English | [简体中文](RELEASING_zh.md) · [README](../README.md)
 ## Publish to GitHub Releases
 
 1. Commit and push the source and [workflow](../.github/workflows/android.yml). For a new app version, update `versionName` and increment `versionCode` in `bridge/build.gradle`.
-2. Create and publish a GitHub Release from that commit. Its tag must match `v` + `versionName`, for example **`v0.3.0`** for the current version. Pre-releases work too, provided the tag matches the APK version: tick **Set as a pre-release** when the build still needs real-headset acceptance.
+2. Create and publish a GitHub Release from that commit. Its tag must match `v` + `versionName`, for example **`v0.3.1`** for the current version. Pre-releases work too, provided the tag matches the APK version: tick **Set as a pre-release** when the build still needs real-headset acceptance.
 3. Wait for **Android CI and Release** to finish. Download from the release's **Assets**:
 
    ```text
-   PicoFacialBridge-v0.3.0-arm64-v8a-debug.apk
+   PicoFacialBridge-v0.3.1-arm64-v8a-debug.apk
    SHA256SUMS.txt
    LICENSE
    THIRD_PARTY_NOTICES.md

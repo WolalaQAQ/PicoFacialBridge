@@ -9,7 +9,7 @@
     <string name="mode_normal">普通（免 root：融合视线、表情、真实睁眼度）</string>
     <string name="mode_enhance">增强（插件 %1$s：逐眼视线与真实瞳孔）</string>
     <string name="rate_hint">统计最近 1 秒成功发送的新源帧。重复携带的旧帧和心跳不计数；未连接客户端时为 0 Hz。</string>
-    <string name="selection_hint">修改即时生效并自动保存。两项都关闭时暂停追踪数据。此处控制传输；PICO 共用算法仍需两项权限。</string>
+    <string name="selection_hint">修改即时生效并自动保存。仅传输本地启用且 PC 已订阅的通道，两项都关闭时暂停追踪数据。PICO 共用算法仍需两项权限。</string>
     <string name="start">启动</string>
     <string name="stop">停止</string>
     <string name="restart">重启</string>
@@ -28,7 +28,8 @@
     <string name="detail_waiting">等待新鲜追踪数据：请佩戴或唤醒头显</string>
     <string name="detail_discovery">等待 VRCFT 客户端发现</string>
     <string name="detail_stopped">追踪已停止，摄像头订阅已释放</string>
-    <string name="detail_paused">两项传输均已关闭，开启任意一项即可恢复。</string>
+    <string name="detail_paused">本地两项传输均已关闭，请开启需要传输的通道。</string>
+    <string name="detail_no_common_channels">本地启用的通道与 PC 订阅没有交集。请检查本地传输开关及 PC 追踪设置。</string>
     <string name="detail_permission">共用算法需要眼追和面捕权限，请点击启动重新授权。</string>
     <string name="detail_error">追踪出现错误，详情见下方</string>
     <string name="detail_retry">连接失败，每 5 秒重试一次</string>

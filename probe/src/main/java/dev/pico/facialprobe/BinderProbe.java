@@ -141,6 +141,7 @@ final class BinderProbe {
     private Mapping mapping(int type) {
         Parcel request = Parcel.obtain(), reply = Parcel.obtain();
         ParcelFileDescriptor owned = null;
+        Mapping mapping = null;
         try {
             request.writeInterfaceToken(DESCRIPTOR); request.writeInt(type);
             boolean handled = binder.transact(18, request, reply, 0);
@@ -155,7 +156,7 @@ final class BinderProbe {
             StructStat stat = Os.fstat(owned.getFileDescriptor());
             log.accept("FD type=" + type + " fd=" + owned.getFd() + " memorySize=" + size + " fstatSize=" + stat.st_size + " errno=0");
             if (size < 20 || size > 16 * 1024 * 1024 || (stat.st_size > 0 && stat.st_size < size)) throw new IOException("Invalid map length");
-            Mapping mapping = new Mapping(owned, size);
+            mapping = new Mapping(owned, size);
             owned = null;
             ByteBuffer data = mapping.memory.duplicate().order(ByteOrder.LITTLE_ENDIAN);
             log.accept("MMAP type=" + type + " OK errno=0 version=" + data.getInt(0) + " elementSize=" + data.getInt(4)
@@ -163,11 +164,13 @@ final class BinderProbe {
             // Diagnostic-only snapshot: retains source timestamps for cadence analysis, even after wear stops.
             byte[] ring = new byte[size]; data.position(0); data.get(ring);
             dump("ring-" + type, ring);
-            return mapping;
+            Mapping result = mapping; mapping = null; return result;
         } catch (Exception e) { log.accept("SHM_FAILED type=" + type + " " + Log.getStackTraceString(e)); return null; }
         finally {
-            if (owned != null) try { owned.close(); } catch (IOException ignored) {}
-            request.recycle(); reply.recycle();
+            // Transfer to the caller only after diagnostics succeed; otherwise release both mmap and FD.
+            try { ResourceScope.close(mapping, owned); }
+            catch (Exception e) { log.accept("SHM_CLEANUP type=" + type + " " + Log.getStackTraceString(e)); }
+            finally { request.recycle(); reply.recycle(); }
         }
     }
 
