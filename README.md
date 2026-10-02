@@ -11,7 +11,7 @@ The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy 
 
 **[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> Version 0.3.0 is a pre-release. It uses the BridgeSplit protocol, so the PC must run UnifiedPicoModule. The earlier PicoFacialDataModule and its forks cannot receive data from this version. If you still need the old protocol, continue to use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0).
+> Version 0.3.0 uses the BridgeSplit protocol, so the PC must run UnifiedPicoModule. The earlier PicoFacialDataModule and its forks cannot receive data from this version. If you still need the old protocol, use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0).
 
 ## Features
 

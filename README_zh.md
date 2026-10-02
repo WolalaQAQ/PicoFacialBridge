@@ -11,7 +11,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 **[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> 0.3.0 为预发布版本，使用 BridgeSplit 协议，PC 端必须使用 UnifiedPicoModule。旧版 PicoFacialDataModule 及其分支无法接收该版本的数据。仍需使用旧协议时，请继续使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。
+> 0.3.0 使用 BridgeSplit 协议，PC 端必须使用 UnifiedPicoModule。旧版 PicoFacialDataModule 及其分支无法接收该版本的数据。仍需使用旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。
 
 ## 功能
 
