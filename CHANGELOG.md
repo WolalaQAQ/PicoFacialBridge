@@ -2,6 +2,22 @@
 
 English | [简体中文](CHANGELOG_zh.md)
 
+## [Unreleased] - 2026-10-28
+
+### Features
+- Add a direct native-gaze subscription alongside the existing BridgeSplit avatar session, with its own endpoint, ID, epoch and renewable lease.
+- Show the gaze client, successful source rate and packet count independently from avatar eye/face transmission.
+
+### Design Rationale
+- Keep gaze consumers independent of VRCFaceTracking and preserve the existing avatar source selection, processing and UDP9030 session.
+- Share the headset UDP socket while separating control namespaces; gaze unsubscribe cannot issue an avatar STOP.
+- Send only the latest fresh native observation for gaze rendering, while retaining the avatar stream's existing history/cadence behavior. Gaze-only health does not require facial-expression updates.
+
+### Notes & Caveats
+- Requires a matching direct-gaze client; existing BridgeSplit clients continue to work without changes. Published 0.5.0 APKs do not contain this protocol.
+- Host protocol/loopback tests, Android build/lint, headset replay coexistence and Bridge process-restart recovery pass. Real gaze also reached an active NVIDIA 616.92 consumer in normally EAC-protected VRChat through the direct client; rendered-region alignment was not visually confirmed.
+- Update the enhanced-mode label to describe independent eye expressions rather than implying independent native gaze.
+
 ## [0.5.0] - 2026-10-17
 
 ### Features

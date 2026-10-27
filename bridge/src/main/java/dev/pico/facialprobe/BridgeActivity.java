@@ -115,7 +115,10 @@ public final class BridgeActivity extends Activity {
                 s(!sendEye ? R.string.disabled : BridgeState.eye ? R.string.live : R.string.no_data),
                 s(!sendFace ? R.string.disabled : BridgeState.face ? R.string.live : R.string.no_data),
                 BridgeState.udp ? s(R.string.listening, BridgeState.address) : s(R.string.status_stopped),
-                client, BridgeState.eyeFrames, BridgeState.faceFrames, BridgeState.packets));
+                client, BridgeState.eyeFrames, BridgeState.faceFrames, BridgeState.packets) + "\n"
+                + s(R.string.gaze_details, BridgeState.gazeClient.isEmpty() ? s(R.string.client_none) : BridgeState.gazeClient,
+                sendEye && BridgeState.udp ? BridgeState.gazeRates.hz(SystemClock.elapsedRealtimeNanos())[0] : 0d,
+                BridgeState.gazePackets));
         logButton.setText(s(showingLogs ? R.string.hide_logs : R.string.show_logs));
         logs.setVisibility(showingLogs ? View.VISIBLE : View.GONE);
         if (showingLogs) logs.setText(BridgeState.logs());

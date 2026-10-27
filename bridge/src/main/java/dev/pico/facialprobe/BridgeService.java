@@ -44,6 +44,7 @@ public final class BridgeService extends Service {
             synchronized (transmissionLock) {
                 transmitMask = BridgePreferences.selection(preferences);
                 BridgeState.rates.reset();
+                BridgeState.gazeRates.reset();
             }
             BridgeState.log("TRANSMISSION eye=" + ((transmitMask & 1) != 0) + " face=" + ((transmitMask & 2) != 0));
         } else if (BridgePreferences.LANGUAGE.equals(key)) {
@@ -140,11 +141,14 @@ public final class BridgeService extends Service {
             socket.setSoTimeout(1); socket.setNetworkInterface(network); socket.setTimeToLive(1);
             socket.joinGroup(new InetSocketAddress("239.255.255.250", 9030), network);
             BridgeState.udp = true; BridgeState.client = ""; BridgeState.clientMessage = R.string.client_none;
+            BridgeState.gazeClient = ""; BridgeState.gazePackets = 0; BridgeState.gazeRates.reset();
             BridgeState.packets = BridgeState.eyeFrames = BridgeState.faceFrames = 0;
             BridgeState.ringOverruns=0;
             BridgeState.log("UDP listening " + BridgeState.address + " multicast=239.255.255.250 interface=wlan0");
             PeerProtocol peer = new PeerProtocol();
+            GazeSubscription gaze = new GazeSubscription();
             InetSocketAddress endpoint = null;
+            InetSocketAddress gazeEndpoint = null;
             refreshMode();
             long nextStart = 0, nextLog = 0, nextAdvert = 0, nextModeCheck = 0, reportedOverruns=0;
             int lastSelection = transmitMask;
@@ -154,25 +158,39 @@ public final class BridgeService extends Service {
             while (!cancel.get()) {
                 long now = SystemClock.elapsedRealtime();
                 final int localSelection = transmitMask;
+                gaze.updateSelection((localSelection & 1) != 0, SystemClock.elapsedRealtimeNanos());
                 byte[] inbound = new byte[64]; DatagramPacket request = new DatagramPacket(inbound, inbound.length);
                 try {
                     socket.receive(request);
                     InetSocketAddress sender = new InetSocketAddress(request.getAddress(), request.getPort());
-                    boolean hadPeer=peer.connected();
-                    if (peer.receive(sender.toString(), Arrays.copyOf(inbound, request.getLength()), now)) {
-                        if (peer.connected()) {
-                            if (peer.takeDiscovery()) { nextAdvert = 0; pump = new FramePump(); }
-                            if(!hadPeer){ledger=new DeliveryLedger();BridgeState.rates.reset();nextAdvert=0;BridgeState.log("DELIVERY_BEGIN peer="+sender);}
-                            endpoint = sender;
-                            if (!captureWanted) nextStart = 0;
-                            captureWanted = true; BridgeState.client = sender.toString();
-                        } else {
-                            finishLedger(ledger,"STOP");ledger=null;
-                            endpoint = null; captureWanted = false; BridgeState.client = ""; BridgeState.clientMessage = R.string.client_stop; BridgeState.rates.reset();
-                            BridgeState.log("CLIENT_STOP; tracking paused until next discovery");
+                    byte[] control = Arrays.copyOf(inbound, request.getLength());
+                    if (GazeSubscription.isControl(control)) {
+                        boolean hadGaze = gaze.connected();
+                        if (gaze.receive(sender.toString(), control, now, SystemClock.elapsedRealtimeNanos())) {
+                            gazeEndpoint = gaze.connected() ? sender : null;
+                            if (gaze.connected() && !hadGaze) nextStart = 0;
+                        }
+                    } else {
+                        boolean hadPeer=peer.connected();
+                        if (peer.receive(sender.toString(), control, now)) {
+                            if (peer.connected()) {
+                                if (peer.takeDiscovery()) { nextAdvert = 0; pump = new FramePump(); }
+                                if(!hadPeer){ledger=new DeliveryLedger();BridgeState.rates.reset();nextAdvert=0;BridgeState.log("DELIVERY_BEGIN peer="+sender);}
+                                endpoint = sender;
+                                if (!captureWanted) nextStart = 0;
+                                captureWanted = true; BridgeState.client = sender.toString();
+                            } else {
+                                finishLedger(ledger,"STOP");ledger=null;
+                                endpoint = null; captureWanted = false; BridgeState.client = ""; BridgeState.clientMessage = R.string.client_stop; BridgeState.rates.reset();
+                                BridgeState.log("CLIENT_STOP; tracking paused until next discovery");
+                            }
                         }
                     }
                 } catch (SocketTimeoutException expected) { /* poll the tracking rings */ }
+                if (gaze.expire(now) || !gaze.connected()) {
+                    gazeEndpoint = null; BridgeState.gazeRates.reset();
+                }
+                BridgeState.gazeClient = gaze.connected() ? gaze.endpoint() : "";
                 if (peer.expired(now)) {
                     finishLedger(ledger,"TIMEOUT");ledger=null;
                     peer.clear(); endpoint = null; captureWanted = false; BridgeState.client = ""; BridgeState.clientMessage = R.string.client_timeout; BridgeState.rates.reset();
@@ -184,9 +202,12 @@ public final class BridgeService extends Service {
                 // Nothing is transmitted before the PC subscribes; until then capture follows the
                 // local switches so the headset UI still reports tracking health.
                 final int selection = peer.effectiveMask(localSelection);
-                final int captureSelection = peer.subscribed() ? selection : localSelection;
+                final int primaryCaptureSelection = captureWanted && (peer.connected() || !gaze.connected())
+                        ? (peer.subscribed() ? selection : localSelection) : 0;
+                final int captureSelection = gaze.captureMask(primaryCaptureSelection);
                 final boolean sendEye = (selection & 1) != 0, sendFace = (selection & 2) != 0;
-                final boolean captureEye = (captureSelection & 1) != 0;
+                final boolean healthEye = primaryCaptureSelection != 0 ? (primaryCaptureSelection & 1) != 0 : gaze.wanted();
+                final boolean captureMorphology = primaryCaptureSelection != 0;
                 boolean selectionChanged = peer.updateSelection(localSelection, SystemClock.elapsedRealtimeNanos());
                 if (selectionChanged) {
                     nextStart = 0; nextAdvert = 0; pump = new FramePump(); BridgeState.rates.reset();
@@ -202,20 +223,20 @@ public final class BridgeService extends Service {
                     byte[] acknowledgement = peer.acknowledgement();
                     socket.send(new DatagramPacket(acknowledgement, acknowledgement.length, endpoint));
                 }
-                boolean sessionWanted = captureWanted && captureSelection != 0;
+                boolean sessionWanted = captureSelection != 0;
                 // Publication now follows a verified service restart. A reconnect may beat that
                 // publication, so refresh even while a session is active (or capture is paused).
                 if (now >= nextModeCheck) {
                     if (refreshMode()) {
                         nextAdvert = 0; pump = new FramePump(); BridgeState.rates.reset();
+                        gaze.resetSource(SystemClock.elapsedRealtimeNanos());
                         lastEyeFresh = lastMorphologyFresh = SystemClock.elapsedRealtime();
                     }
                     nextModeCheck = SystemClock.elapsedRealtime() + 1000;
                 }
                 if (!sessionWanted && active) { session.close(); active = false; pump = new FramePump(); BridgeState.rates.reset(); }
-                // Every active selection needs morphology: F for face/both, A for eye-only.
-                // Face-only must not wait for the unused native eye source.
-                long lastRequiredFresh = captureEye ? Math.min(lastEyeFresh, lastMorphologyFresh) : lastMorphologyFresh;
+                // Avatar eyes need morphology, but a standalone gaze subscriber does not.
+                long lastRequiredFresh = StreamHealth.requiredFreshness(primaryCaptureSelection, gaze.wanted(), lastEyeFresh, lastMorphologyFresh);
                 if (StreamHealth.reconnectDue(active, session.isAlive(), now, lastRequiredFresh)) {
                     BridgeState.log("RECONNECT stale or dead tracking session");
                     session.close(); active = false; pump = new FramePump(); nextStart = now + 1000;
@@ -224,6 +245,7 @@ public final class BridgeService extends Service {
                     if (refreshMode()) nextAdvert = 0;
                     try {
                         session.open(); active = true; startError = null;
+                        gaze.resetSource(SystemClock.elapsedRealtimeNanos());
                         lastEyeFresh = lastMorphologyFresh = SystemClock.elapsedRealtime();
                         pump=new FramePump(); reportedOverruns=0; BridgeState.rates.reset();
                     }
@@ -253,6 +275,32 @@ public final class BridgeService extends Service {
                     nextAdvert = SystemClock.elapsedRealtime() + ADVERT_KEEPALIVE_MS;
                 }
                 long nano = SystemClock.elapsedRealtimeNanos();
+                // The acknowledgement precedes data for a new gaze epoch. This
+                // namespace never discovers, subscribes or stops the avatar peer.
+                if (gaze.expire(SystemClock.elapsedRealtime())) {
+                    gazeEndpoint = null; BridgeState.gazeClient = ""; BridgeState.gazeRates.reset();
+                }
+                if (gazeEndpoint != null) {
+                    try {
+                        if (gaze.takeReply()) {
+                            byte[] acknowledgement = gaze.acknowledgement();
+                            socket.send(new DatagramPacket(acknowledgement, acknowledgement.length, gazeEndpoint));
+                        }
+                        synchronized (transmissionLock) {
+                            if ((transmitMask & 1) != 0 && !cancel.get()) {
+                                byte[] gazePacket = gaze.next(eyes, nano);
+                                if (gazePacket != null) {
+                                    socket.send(new DatagramPacket(gazePacket, gazePacket.length, gazeEndpoint));
+                                    BridgeState.gazePackets++;
+                                    BridgeState.gazeRates.sent(nano, TrackingData.packetTimestamp(gazePacket), 0);
+                                }
+                            }
+                        }
+                    } catch (java.io.IOException error) {
+                        BridgeState.log("GAZE_SEND_FAILED " + error);
+                        gaze.clear(); gazeEndpoint = null; BridgeState.gazeClient = ""; BridgeState.gazeRates.reset();
+                    }
+                }
                 pump.accept(eyes,faces,nano,sendEye,sendFace,payload -> {
                     synchronized (transmissionLock) {
                         if(destination!=null && localSelection == transmitMask && !cancel.get()){
@@ -270,23 +318,25 @@ public final class BridgeService extends Service {
                 BridgeState.eye = TrackingData.eyeValid(eye) && TrackingData.fresh(nano, eyeTime);
                 BridgeState.face = active && pump.faceValid(nano);
                 boolean eyeFresh = TrackingData.eyeFresh(eye, nano),
-                        morphologyFresh = active && pump.morphologyFresh(nano, captureSelection);
+                        morphologyFresh = active && pump.morphologyFresh(nano, primaryCaptureSelection);
                 if (eyeFresh) lastEyeFresh = nano / 1_000_000L;
                 if (morphologyFresh) lastMorphologyFresh = nano / 1_000_000L;
                 // Overall health requires every needed source; forwarding remains independent.
-                boolean live = sessionWanted && (!captureEye || eyeFresh) && morphologyFresh;
+                boolean live = sessionWanted && (!healthEye || eyeFresh) && (!captureMorphology || morphologyFresh);
                 BridgeState.error = startError != null && sessionWanted ? startError : "";
                 BridgeState.status = captureSelection == 0 ? R.string.status_paused : live ? R.string.status_running
                         : startError != null && sessionWanted ? R.string.status_error : R.string.status_starting;
                 int pauseDetail = localSelection == 0 ? R.string.detail_paused : R.string.detail_no_common_channels;
                 BridgeState.detail = captureSelection == 0 ? pauseDetail : startError != null && sessionWanted ? R.string.detail_retry
-                        : live ? R.string.detail_live : captureWanted ? R.string.detail_waiting : R.string.detail_discovery;
+                        : live ? R.string.detail_live : sessionWanted ? R.string.detail_waiting : R.string.detail_discovery;
                 if (now >= nextLog) {
                     double[] hz = BridgeState.rates.hz(SystemClock.elapsedRealtimeNanos());
                     BridgeState.log("STATE " + getResources().getResourceEntryName(BridgeState.status) + " eye=" + BridgeState.eye + " face=" + BridgeState.face
                             + " frames=" + BridgeState.eyeFrames + "/" + BridgeState.faceFrames + " packets=" + BridgeState.packets + " client=" + BridgeState.client + " ringOverruns="+BridgeState.ringOverruns
                             + " localMask=" + localSelection + " requestedMask=" + peer.requestedMask() + " transmitMask=" + selection
                             + " subscribed=" + peer.subscribed() + " eyeTxHz=" + hz[0] + " faceTxHz=" + hz[1]);
+                    BridgeState.log("GAZE client=" + BridgeState.gazeClient + " enabled=" + gaze.wanted()
+                            + " packets=" + BridgeState.gazePackets + " txHz=" + BridgeState.gazeRates.hz(SystemClock.elapsedRealtimeNanos())[0]);
                     nextLog = now + 5000;
                     BridgeState.log(xDelivery.report(SystemClock.elapsedRealtimeNanos()));
                 }
@@ -300,6 +350,7 @@ public final class BridgeService extends Service {
             if (wake != null && wake.isHeld()) wake.release();
             BridgeState.eye = BridgeState.face = BridgeState.udp = false;
             BridgeState.rates.reset();
+            BridgeState.gazeClient = ""; BridgeState.gazeRates.reset();
             BridgeState.log("END worker cleanup complete");
         }
     }

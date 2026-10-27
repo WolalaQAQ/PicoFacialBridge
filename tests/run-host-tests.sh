@@ -6,8 +6,8 @@ out=build/host-tests
 mkdir -p "$out"
 javac -encoding UTF-8 -d "$out" \
   shared/src/main/java/dev/pico/facialprobe/{TrackingBuffer,TrackingData,TrackingMode,StreamHealth,ResourceScope,FramePump,DeliveryLedger,TransmissionRates,XDeliveryStats}.java \
-  bridge/src/main/java/dev/pico/facialprobe/PeerProtocol.java \
-  tests/{TrackingBufferTest,PeerProtocolTest,CadenceTest,ForwardingTest,IndependentExpressionTest}.java
-for test in TrackingBufferTest PeerProtocolTest CadenceTest ForwardingTest IndependentExpressionTest; do
+  bridge/src/main/java/dev/pico/facialprobe/{PeerProtocol,GazeSubscription}.java \
+  tests/{TrackingBufferTest,PeerProtocolTest,CadenceTest,ForwardingTest,IndependentExpressionTest,GazeSubscriptionTest,GazeLoopbackServer}.java
+for test in TrackingBufferTest PeerProtocolTest CadenceTest ForwardingTest IndependentExpressionTest GazeSubscriptionTest; do
   java -cp "$out" "dev.pico.facialprobe.$test"
 done

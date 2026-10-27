@@ -11,7 +11,7 @@ The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy 
 
 **[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> Version 0.5.0 uses the BridgeSplit protocol, so the PC must run [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule). The earlier PicoFacialDataModule and its forks cannot receive data from this version. If you still need the old protocol, use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0).
+> Avatar tracking uses BridgeSplit and requires [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule). The earlier PicoFacialDataModule and its forks cannot receive this format; use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) if you still need the old protocol. The separate native-gaze subscription described below requires a development build and is not in the published 0.5.0 APK.
 
 ## Features
 
@@ -19,6 +19,7 @@ The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy 
 - Eye and face data are sent independently at their own source rates, with no smoothing or interpolation.
 - Eye and face transmission can be switched separately, and the interface shows the actual send rate of each channel.
 - Only the channels the PC has subscribed to are sent, and no tracking data is sent before the subscription is acknowledged.
+- A separate native-gaze client can subscribe directly alongside the avatar client, without VRCFT or a PC-side relay.
 - The tracking mode (normal or enhanced) is detected automatically and shown in the app.
 - The interface is available in English and Chinese, and the language and transmission settings are saved.
 
@@ -32,7 +33,7 @@ On a headset with the [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhan
 |---|---|
 | Headset | PICO 4 Pro with working eye and face tracking |
 | Verified firmware | PICO OS 5.13.7 (Android 10 / API 29, arm64-v8a) |
-| PC | Windows with VRCFaceTracking 5.4.5 and [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) |
+| PC | Avatar tracking: Windows with VRCFaceTracking 5.4.5 and [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule). Native gaze: a client implementing the [gaze subscription protocol](GAZE-PROTOCOL.md) |
 | Network | PC and headset on the same trusted local network, with UDP port 9030 reachable |
 | VRChat | An avatar set up for face tracking, with OSC enabled |
 
@@ -86,6 +87,16 @@ Replace the example with the headset IPv4 address shown in PicoFacialBridge, the
 
 The app does not start automatically at boot. After the headset restarts, open the app and start it again.
 
+### Independent native gaze (development build)
+
+A compatible gaze client connects directly to the headset address on UDP9030 from its own PC UDP port. VRCFT is not required for this path. The existing eye/face client can connect and stop independently; stopping one client does not unsubscribe the other.
+
+Keep **Transmit eye tracking** enabled in Bridge. Its local eye switch also gates the separate gaze subscription. Gaze-only operation sends the latest fresh native `E` sample, without waiting for facial expressions or sending `A/F/X` packets. The original avatar path retains its packet format and source cadence. See the [protocol reference](GAZE-PROTOCOL.md) for client implementation.
+
+The direct client has been tested with real PICO gaze, an active NVIDIA 616.92 consumer and successful submissions in normally EAC-protected VRChat. This confirms the transport and consumer path; visible VRSS region alignment and tracking were not confirmed.
+
+The direct path has host and synthetic loopback coverage; headset coexistence and VRSS rendering still need hardware validation.
+
 ## Interface
 
 | Control or status | Description |
@@ -94,7 +105,8 @@ The app does not start automatically at boot. After the headset restarts, open t
 | Start / Stop / Restart | Control the tracking service without ADB |
 | Send eye / Send face | Control transmission of each channel separately; changes take effect immediately and are saved |
 | Both off | Pauses tracking capture and data transmission while keeping discovery and control communication available |
-| Eye / Face Hz | Source frames successfully sent in the last second; not the capture rate or a display frame rate |
+| Eye / Face Hz | Source frames successfully sent to the avatar client in the last second; not the capture rate or a display frame rate |
+| Gaze client / Gaze Hz | Independent native-gaze endpoint and its successful source-frame send rate; can be active with no VRCFT client |
 | 0 Hz | No client, the channel is off, or there are no new samples; repeated samples and heartbeats are not counted |
 | Waiting for fresh tracking data | Put on and wake the headset, and check the system tracking settings and permissions |
 | English / 中文 | Switches the interface and notification language without affecting tracking |
@@ -151,7 +163,7 @@ pwsh -File tests/check-translations.ps1
 python3 tests/test_apk_distribution.py
 ```
 
-On Windows, `run-unit.ps1`, `run-protocol.ps1`, `run-cadence.ps1` and `run-forwarding.ps1` under `tests/` are also available. These scripts read the JDK directory from the local file `tools/jdk-path.txt`, which is not under version control and can be created with `Set-Content tools/jdk-path.txt $env:JAVA_HOME`. Device UI tests and real-headset acceptance are outside the scope of host CI.
+On Windows, `run-unit.ps1`, `run-protocol.ps1`, `run-cadence.ps1`, `run-forwarding.ps1` and `run-gaze.ps1` under `tests/` are also available. These scripts read the JDK directory from the local file `tools/jdk-path.txt`, which is not under version control and can be created with `Set-Content tools/jdk-path.txt $env:JAVA_HOME`. Device UI tests and real-headset acceptance are outside the scope of host CI.
 
 ### Project structure
 
@@ -175,6 +187,8 @@ See the [changelog](CHANGELOG.md) for version history and the [release guide](do
 The app and UnifiedPicoModule communicate with the BridgeSplit protocol over UDP port 9030, with discovery via the multicast address 239.255.255.250. Eye data and face data are sent as separate datagrams at their own source rates, carrying only the subscribed channels.
 
 For the full description of packet formats, control messages and the connection flow, see the UnifiedPicoModule [protocol reference](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/docs/protocol.md). When the protocol changes, this app and UnifiedPicoModule must be updated together.
+
+The [independent gaze subscription](GAZE-PROTOCOL.md) adds a separate command namespace on the same headset UDP socket. Existing BridgeSplit clients need no update to continue using their original eye/face session.
 
 ### Contributing
 

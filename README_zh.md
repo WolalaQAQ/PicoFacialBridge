@@ -11,7 +11,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 **[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> 0.5.0 使用 BridgeSplit 协议，PC 端须运行 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。旧版 PicoFacialDataModule 及其分支无法接收该版本的数据；仍需使用旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。
+> Avatar 眼面捕使用 BridgeSplit 协议，PC 端须运行 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。旧版 PicoFacialDataModule 及其分支无法接收该格式；仍需旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。下文的独立原生视线订阅需要开发构建，已发布的0.5.0 APK尚不包含它。
 
 ## 功能
 
@@ -19,6 +19,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 - 眼动与面部数据按各自的源频率独立发送，不做平滑或插值。
 - 眼动与面部传输可分别开关，界面显示各通道的实际发送频率。
 - 只发送 PC 端订阅的通道，订阅确认前不发送任何追踪数据。
+- 原生视线客户端可以直接订阅，并与 Avatar 眼面捕客户端同时使用，不需要 VRCFT 或 PC 中继。
 - 自动检测追踪模式（普通或增强）并在应用内显示。
 - 界面支持中文与英文，语言与传输设置会被保存。
 
@@ -32,7 +33,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 |---|---|
 | 头显 | 眼动与面部追踪功能正常的 PICO 4 Pro |
 | 已验证固件 | PICO OS 5.13.7（Android 10 / API 29，arm64-v8a） |
-| PC | Windows，安装 VRCFaceTracking 5.4.5 与 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) |
+| PC | Avatar眼面捕：Windows、VRCFaceTracking 5.4.5 与 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。原生视线：实现[独立视线订阅协议](GAZE-PROTOCOL.md)的客户端 |
 | 网络 | PC 与头显位于同一可信局域网，UDP 9030 端口可达 |
 | VRChat | 已配置面部追踪的 Avatar，并启用 OSC |
 
@@ -86,6 +87,16 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 本应用不会开机自启。头显重启后，需要重新打开应用并启动。
 
+### 独立原生视线（开发构建）
+
+兼容的视线客户端从自己的PC UDP端口，直接连接头显地址的UDP9030；这条路径不需要运行VRCFT。原有眼面捕客户端仍可独立连接和停止，停止其中一个客户端不会退订另一个。
+
+在Bridge中保持“传输眼追”开启，本地眼追开关也控制独立视线订阅。仅订阅视线时，只发送最新的新鲜原生 `E` 样本，不等待表情结果，也不发送 `A/F/X` 包。原有Avatar路径保留原来的包格式和源频率。客户端实现见[协议参考](GAZE-PROTOCOL.md)。
+
+直连客户端已使用真人PICO视线，在正常EAC保护的VRChat中接通NVIDIA 616.92 consumer并成功提交。这确认了传输与消费端链路；VRSS画面区域的对齐和跟随尚未获得目视确认。
+
+直连路径已覆盖主机测试与合成数据回环；头显共存和VRSS画面仍待真机验证。
+
 ## 界面说明
 
 | 控件或状态 | 说明 |
@@ -94,7 +105,8 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 | 启动 / 停止 / 重启 | 控制追踪服务，无需 ADB |
 | 传输眼追 / 传输面捕 | 分别控制两个通道的发送，修改立即生效并被保存 |
 | 两项均关闭 | 暂停追踪采集与数据发送，保留发现与控制通信 |
-| 眼追 / 面捕 Hz | 最近一秒内成功发出的源帧数，不是采集频率或画面帧率 |
+| 眼追 / 面捕 Hz | 最近一秒成功发给Avatar客户端的源帧数，不是采集频率或画面帧率 |
+| 视线客户端 / 视线 Hz | 独立原生视线接收端及其成功发送的新源频率；没有VRCFT客户端时也可工作 |
 | 0 Hz | 没有客户端、通道已关闭或没有新的样本；重复样本与心跳不计入 |
 | 等待新鲜追踪数据 | 请佩戴并唤醒头显，检查系统追踪设置与权限 |
 | 中文 / English | 切换界面与通知语言，不影响追踪 |
@@ -151,7 +163,7 @@ pwsh -File tests/check-translations.ps1
 python3 tests/test_apk_distribution.py
 ```
 
-在 Windows 上也可以运行 `tests/` 下的 `run-unit.ps1`、`run-protocol.ps1`、`run-cadence.ps1` 与 `run-forwarding.ps1`。这些脚本从本地文件 `tools/jdk-path.txt` 读取 JDK 目录（该文件不纳入版本控制），可以通过 `Set-Content tools/jdk-path.txt $env:JAVA_HOME` 生成。设备 UI 测试与真机验收不在主机 CI 范围内。
+在 Windows 上也可以运行 `tests/` 下的 `run-unit.ps1`、`run-protocol.ps1`、`run-cadence.ps1`、`run-forwarding.ps1` 与 `run-gaze.ps1`。这些脚本从本地文件 `tools/jdk-path.txt` 读取 JDK 目录（该文件不纳入版本控制），可以通过 `Set-Content tools/jdk-path.txt $env:JAVA_HOME` 生成。设备 UI 测试与真机验收不在主机 CI 范围内。
 
 ### 项目结构
 
@@ -175,6 +187,8 @@ PICO 追踪服务 → Binder / 只读共享内存
 本应用与 UnifiedPicoModule 之间使用 BridgeSplit 协议，基于 UDP 9030 端口，并通过多播地址 239.255.255.250 进行发现。眼动数据与面部数据分别作为数据报，按各自的源频率发送，只携带已订阅的通道。
 
 包格式、控制报文与连接流程的完整说明请参阅 UnifiedPicoModule 的[协议参考](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/docs/protocol_zh.md)。协议变更时，本应用与 UnifiedPicoModule 需要同时更新。
+
+[独立视线订阅](GAZE-PROTOCOL.md)在同一个头显UDP入口上使用单独的命令名；原BridgeSplit客户端无需更新，仍可使用原来的眼面捕会话。
 
 ### 参与贡献
 

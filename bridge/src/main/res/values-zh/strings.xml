@@ -7,7 +7,7 @@
     <string name="face_rate">面捕传输：%1$.1f Hz</string>
     <string name="mode_line">追踪模式：%1$s</string>
     <string name="mode_normal">普通（免 root：融合视线、表情、真实睁眼度）</string>
-    <string name="mode_enhance">增强（插件 %1$s：逐眼视线与真实瞳孔）</string>
+    <string name="mode_enhance">增强（插件 %1$s：逐眼独立表情与真实瞳孔）</string>
     <string name="rate_hint">统计最近 1 秒成功发送的新源帧。重复携带的旧帧和心跳不计数；未连接客户端时为 0 Hz。</string>
     <string name="selection_hint">修改即时生效并自动保存。仅传输本地启用且 PC 已订阅的通道，两项都关闭时暂停追踪数据。PICO 共用算法仍需两项权限。</string>
     <string name="start">启动</string>
@@ -26,7 +26,7 @@
     <string name="detail_connecting">正在连接 PICO 追踪服务</string>
     <string name="detail_live">追踪数据实时更新，可关闭此窗口</string>
     <string name="detail_waiting">等待新鲜追踪数据：请佩戴或唤醒头显</string>
-    <string name="detail_discovery">等待 VRCFT 客户端发现</string>
+    <string name="detail_discovery">等待眼面捕或视线客户端</string>
     <string name="detail_stopped">追踪已停止，摄像头订阅已释放</string>
     <string name="detail_paused">本地两项传输均已关闭，请开启需要传输的通道。</string>
     <string name="detail_no_common_channels">本地启用的通道与 PC 订阅没有交集。请检查本地传输开关及 PC 追踪设置。</string>
@@ -41,6 +41,7 @@
     <string name="disabled">传输已关闭</string>
     <string name="listening">监听中 %1$s</string>
     <string name="tracking_details">眼追：%1$s   面捕：%2$s\nUDP：%3$s\nVRCFT 客户端：%4$s\n源帧数：%5$d / %6$d   数据包：%7$d</string>
+    <string name="gaze_details">视线客户端：%1$s\n视线：%2$.1f Hz   数据包：%3$d</string>
     <string name="notification_channel">追踪转发</string>
     <string name="notification_active">眼追／面捕转发服务，点击查看或停止。</string>
 </resources>
