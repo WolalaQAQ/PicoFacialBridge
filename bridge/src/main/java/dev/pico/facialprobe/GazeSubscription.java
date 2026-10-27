@@ -10,7 +10,7 @@ final class GazeSubscription {
     static final long MAX_AGE_NS = 150_000_000L;
     private String endpoint, id;
     private long lastRequest, epoch, sourceTime;
-    private boolean enabled, reply;
+    private boolean enabled, reply, sourceValid;
 
     static boolean isControl(byte[] bytes) {
         return new String(bytes, StandardCharsets.US_ASCII).startsWith("PXR_GAZE_");
@@ -19,6 +19,10 @@ final class GazeSubscription {
     boolean wanted() { return connected() && enabled; }
     String endpoint() { return endpoint; }
     long epoch() { return epoch; }
+    String subscriptionId() { return connected() ? id : ""; }
+    long leaseUntilMs() { return connected() ? lastRequest + LEASE_MS : 0; }
+    long sourceNanos() { return sourceTime; }
+    boolean sourceValid() { return sourceValid; }
     int captureMask(int primaryMask) { return primaryMask | (wanted() ? 1 : 0); }
 
     boolean receive(String sender, byte[] bytes, long nowMs, long nowNanos) {
@@ -46,7 +50,7 @@ final class GazeSubscription {
         if (connected()) resetSource(nowNanos);
     }
     void resetSource(long nowNanos) {
-        sourceTime = 0;
+        sourceTime = 0; sourceValid = false;
         if (connected()) { epoch = Math.max(epoch + 1, nowNanos); reply = true; }
     }
     boolean expire(long nowMs) {
@@ -74,7 +78,9 @@ final class GazeSubscription {
         sourceTime = latestTime;
         // Direction-only consumer: do not advertise the vendor's split fused
         // vectors as independent per-eye measurements. Invalidations are sent too.
-        return TrackingData.eyePacket(latest, false, 1, epoch);
+        byte[] packet = TrackingData.eyePacket(latest, false, 1, epoch);
+        sourceValid = (TrackingData.bytes(packet).getInt(27) & 2) != 0;
+        return packet;
     }
-    void clear() { endpoint = id = null; sourceTime = 0; reply = false; }
+    void clear() { endpoint = id = null; sourceTime = 0; reply = sourceValid = false; }
 }

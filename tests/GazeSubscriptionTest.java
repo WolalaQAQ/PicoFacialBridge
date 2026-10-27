@@ -42,6 +42,7 @@ public final class GazeSubscriptionTest {
         check(!gaze.receive("gaze", message("PXR_GAZE_SUB id=ABCDEF0123456789"), 0, SECOND), "Canonical subscription ID");
         check(gaze.receive("gaze", message(SUB), 0, SECOND), "Direct subscription without primary client");
         check(gaze.connected() && gaze.wanted() && gaze.captureMask(0) == 1, "Standalone native-eye demand");
+        check(gaze.subscriptionId().equals(ID) && gaze.leaseUntilMs() == 3000, "Read-only subscription diagnostics");
         check(gaze.captureMask(2) == 3, "Face-only primary plus gaze requests native eyes too");
         long epoch = gaze.epoch();
         check(new String(gaze.acknowledgement(), StandardCharsets.US_ASCII).equals(
@@ -60,6 +61,7 @@ public final class GazeSubscriptionTest {
         check(TrackingData.bytes(packet).getLong(3) == epoch && TrackingData.bytes(packet).getLong(11) == SECOND, "Gaze epoch and original source time");
         check(TrackingData.bytes(packet).getFloat(55) == .2f && (TrackingData.bytes(packet).getInt(27) & 2) != 0, "Combined native ray retained");
         check((TrackingData.bytes(packet).getInt(19) & 0x100) == 0, "No claim of independent per-eye native measurements");
+        check(gaze.sourceNanos() == SECOND && gaze.sourceValid(), "Diagnostics follow the actual native sample");
         check(Arrays.equals(nativeEye, original), "Do not modify the shared source frame");
         check(gaze.next(Collections.singletonList(nativeEye), SECOND + 1) == null, "Do not resend a held source");
         check(gaze.receive("gaze", message(SUB), 100, SECOND + 100_000_000), "Renew active subscription");
@@ -69,6 +71,7 @@ public final class GazeSubscriptionTest {
         packet = gaze.next(Arrays.asList(newestInvalid, nativeEye, newer), SECOND + 40);
         check(packet != null && TrackingData.bytes(packet).getLong(11) == SECOND + 30, "Pick newest source, not ring-history playback");
         check(TrackingData.bytes(packet).getInt(27) == 0, "Newest invalidation must not be hidden by an older good ray");
+        check(!gaze.sourceValid(), "UI must not call an invalid sample valid");
         check(gaze.next(Collections.singletonList(newer), SECOND + 41) == null, "Ignore a backward source");
         check(gaze.next(Collections.emptyList(), SECOND + 42) == null, "No input is not a new frame");
         check(gaze.next(Collections.singletonList(eye(SECOND + 50, 0, true)), SECOND + 50 + GazeSubscription.MAX_AGE_NS + 1) == null,
@@ -87,6 +90,7 @@ public final class GazeSubscriptionTest {
         gaze.updateSelection(false, 2 * SECOND);
         check(gaze.connected() && !gaze.wanted() && gaze.captureMask(2) == 2, "Local eye switch stops only gaze demand");
         check(gaze.epoch() > epoch && gaze.takeReply(), "Local eye switch advances only gaze epoch");
+        check(gaze.sourceNanos() == 0 && !gaze.sourceValid(), "Epoch change clears displayed source state");
         check(new String(gaze.acknowledgement(), StandardCharsets.US_ASCII).endsWith("enabled=0"), "Report disabled subscription");
         check(gaze.next(Collections.singletonList(eye(2 * SECOND, 0, true)), 2 * SECOND) == null, "Eye off emits no gaze");
         check(primary.connected() && primary.epoch() == primaryEpoch, "Gaze control does not edit the avatar session");

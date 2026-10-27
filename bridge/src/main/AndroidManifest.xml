@@ -8,7 +8,7 @@
     <uses-permission android:name="com.picovr.permission.EYE_TRACKING" />
     <uses-permission android:name="com.picovr.permission.FACE_TRACKING" />
     <uses-permission android:name="com.picovr.permission.BACKGROUND_PLAYBACK" />
-    <application android:label="PicoFacialBridge" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false">
+    <application android:label="PicoFacialBridge" android:icon="@drawable/ic_bridge" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false">
         <activity android:name="dev.pico.facialprobe.BridgeActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>

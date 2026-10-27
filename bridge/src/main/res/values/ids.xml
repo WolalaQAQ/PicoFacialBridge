@@ -10,4 +10,33 @@
     <item name="restart_button" type="id" />
     <item name="status" type="id" />
     <item name="mode" type="id" />
+    <item name="tab_avatar" type="id" />
+    <item name="tab_gaze" type="id" />
+    <item name="tab_diagnostics" type="id" />
+    <item name="page_avatar" type="id" />
+    <item name="page_gaze" type="id" />
+    <item name="page_diagnostics" type="id" />
+    <item name="avatar_client" type="id" />
+    <item name="avatar_packets" type="id" />
+    <item name="eye_health" type="id" />
+    <item name="face_health" type="id" />
+    <item name="gaze_status" type="id" />
+    <item name="gaze_rate" type="id" />
+    <item name="gaze_packets" type="id" />
+    <item name="gaze_client" type="id" />
+    <item name="gaze_id" type="id" />
+    <item name="gaze_epoch" type="id" />
+    <item name="gaze_lease" type="id" />
+    <item name="gaze_data" type="id" />
+    <item name="gaze_age" type="id" />
+    <item name="gaze_eye_state" type="id" />
+    <item name="gaze_eye_settings" type="id" />
+    <item name="gaze_error" type="id" />
+    <item name="diagnostic_address" type="id" />
+    <item name="diagnostic_frames" type="id" />
+    <item name="diagnostic_overruns" type="id" />
+    <item name="diagnostic_error" type="id" />
+    <item name="show_logs" type="id" />
+    <item name="copy_logs" type="id" />
+    <item name="diagnostic_logs" type="id" />
 </resources>

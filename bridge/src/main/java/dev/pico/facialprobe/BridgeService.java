@@ -147,6 +147,10 @@ public final class BridgeService extends Service {
             BridgeState.log("UDP listening " + BridgeState.address + " multicast=239.255.255.250 interface=wlan0");
             PeerProtocol peer = new PeerProtocol();
             GazeSubscription gaze = new GazeSubscription();
+            GazeStatus.Link gazeLink = GazeStatus.Link.WAITING;
+            String gazeError = "";
+            long nextGazeUi = 0;
+            BridgeState.gaze = GazeStatus.idle(gazeLink);
             InetSocketAddress endpoint = null;
             InetSocketAddress gazeEndpoint = null;
             refreshMode();
@@ -168,6 +172,8 @@ public final class BridgeService extends Service {
                         boolean hadGaze = gaze.connected();
                         if (gaze.receive(sender.toString(), control, now, SystemClock.elapsedRealtimeNanos())) {
                             gazeEndpoint = gaze.connected() ? sender : null;
+                            gazeLink = gaze.connected() ? GazeStatus.Link.SUBSCRIBED : GazeStatus.Link.UNSUBSCRIBED;
+                            gazeError = ""; nextGazeUi = 0;
                             if (gaze.connected() && !hadGaze) nextStart = 0;
                         }
                     } else {
@@ -187,7 +193,9 @@ public final class BridgeService extends Service {
                         }
                     }
                 } catch (SocketTimeoutException expected) { /* poll the tracking rings */ }
-                if (gaze.expire(now) || !gaze.connected()) {
+                boolean gazeExpired = gaze.expire(now);
+                if (gazeExpired) { gazeLink = GazeStatus.Link.EXPIRED; nextGazeUi = 0; }
+                if (gazeExpired || !gaze.connected()) {
                     gazeEndpoint = null; BridgeState.gazeRates.reset();
                 }
                 BridgeState.gazeClient = gaze.connected() ? gaze.endpoint() : "";
@@ -279,6 +287,7 @@ public final class BridgeService extends Service {
                 // namespace never discovers, subscribes or stops the avatar peer.
                 if (gaze.expire(SystemClock.elapsedRealtime())) {
                     gazeEndpoint = null; BridgeState.gazeClient = ""; BridgeState.gazeRates.reset();
+                    gazeLink = GazeStatus.Link.EXPIRED; nextGazeUi = 0;
                 }
                 if (gazeEndpoint != null) {
                     try {
@@ -299,7 +308,15 @@ public final class BridgeService extends Service {
                     } catch (java.io.IOException error) {
                         BridgeState.log("GAZE_SEND_FAILED " + error);
                         gaze.clear(); gazeEndpoint = null; BridgeState.gazeClient = ""; BridgeState.gazeRates.reset();
+                        gazeLink = GazeStatus.Link.FAILED; gazeError = error.toString(); nextGazeUi = 0;
                     }
+                }
+                long uiNow = SystemClock.elapsedRealtime();
+                if (uiNow >= nextGazeUi) {
+                    BridgeState.gaze = new GazeStatus(gazeLink, gaze.connected() ? gaze.endpoint() : "",
+                            gaze.subscriptionId(), gaze.connected() ? gaze.epoch() : 0, gaze.leaseUntilMs(),
+                            gaze.sourceNanos(), gaze.sourceValid(), gazeError);
+                    nextGazeUi = uiNow + 100;
                 }
                 pump.accept(eyes,faces,nano,sendEye,sendFace,payload -> {
                     synchronized (transmissionLock) {
@@ -351,6 +368,7 @@ public final class BridgeService extends Service {
             BridgeState.eye = BridgeState.face = BridgeState.udp = false;
             BridgeState.rates.reset();
             BridgeState.gazeClient = ""; BridgeState.gazeRates.reset();
+            BridgeState.gaze = GazeStatus.idle(GazeStatus.Link.STOPPED);
             BridgeState.log("END worker cleanup complete");
         }
     }

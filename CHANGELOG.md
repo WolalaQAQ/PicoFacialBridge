@@ -6,17 +6,21 @@ English | [简体中文](CHANGELOG_zh.md)
 
 ### Features
 - Add a direct native-gaze subscription alongside the existing BridgeSplit avatar session, with its own endpoint, ID, epoch and renewable lease.
-- Show the gaze client, successful source rate and packet count independently from avatar eye/face transmission.
+- Replace the single scrolling status screen with a responsive dark dashboard: Eye & face, Gaze and Diagnostics pages, large controls, separate transmission cards, a shared service/mode header, and a matching application icon.
+- Add a dedicated gaze inspector for subscription state, endpoint, ID, epoch, lease remaining, sample validity/age, successful send rate, packet count and send errors. Add collapsible/copyable diagnostic logs.
 
 ### Design Rationale
 - Keep gaze consumers independent of VRCFaceTracking and preserve the existing avatar source selection, processing and UDP9030 session.
 - Share the headset UDP socket while separating control namespaces; gaze unsubscribe cannot issue an avatar STOP.
 - Send only the latest fresh native observation for gaze rendering, while retaining the avatar stream's existing history/cadence behavior. Gaze-only health does not require facial-expression updates.
+- Publish an immutable, read-only gaze snapshot for the interface. Display clocks age the lease and source without renewing them; subscribed, locally disabled, invalid and stale are separate states. Page/language changes do not issue tracking or subscription commands.
+- Scroll the whole dashboard in short windows, keep independently scrolling pages in taller windows, and move language controls below the title when space is narrow.
 
 ### Notes & Caveats
 - Requires a matching direct-gaze client; existing BridgeSplit clients continue to work without changes. Published 0.5.0 APKs do not contain this protocol.
 - Host protocol/loopback tests, Android build/lint, headset replay coexistence and Bridge process-restart recovery pass. Real gaze also reached an active NVIDIA 616.92 consumer in normally EAC-protected VRChat through the direct client; rendered-region alignment was not visually confirmed.
 - Update the enhanced-mode label to describe independent eye expressions rather than implying independent native gaze.
+- The dashboard redesign is build/static checked. Device UI tests cover navigation, translations, shared-switch behavior and subscription diagnostics in source, but have not been run on a headset for this redesign. Design previews use illustrative data, not captured telemetry.
 
 ## [0.5.0] - 2026-10-17
 

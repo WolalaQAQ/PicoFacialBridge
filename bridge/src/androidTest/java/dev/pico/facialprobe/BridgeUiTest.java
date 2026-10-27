@@ -7,6 +7,8 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.view.View;
 import android.widget.Switch;
 import android.widget.TextView;
 import java.util.Map;
@@ -40,6 +42,8 @@ public final class BridgeUiTest extends Instrumentation {
     @Override public void onStart() {
         SharedPreferences prefs = getTargetContext().getSharedPreferences("bridge", 0);
         Map<String, ?> saved = prefs.getAll(); Bundle result = new Bundle(); int resultCode = Activity.RESULT_CANCELED;
+        GazeStatus previousGaze = BridgeState.gaze;
+        long previousPackets = BridgeState.gazePackets;
         try {
             prefs.edit().putBoolean("transmit_eye", true).putBoolean("transmit_face", true).putString("language", "en").commit();
             activity = open();
@@ -71,7 +75,44 @@ public final class BridgeUiTest extends Instrumentation {
                 click(R.id.language_en);
                 check(text(R.id.stop_button).equals("Stop"), "Switch back to English");
                 check(text(R.id.eye_rate).contains("Hz") && text(R.id.face_rate).contains("Hz"), "Separate rate displays");
+                click(R.id.tab_gaze);
+                check(activity.findViewById(R.id.page_gaze).getVisibility() == View.VISIBLE, "Dedicated gaze page");
+                check(activity.findViewById(R.id.page_avatar).getVisibility() == View.GONE, "Only the selected page is visible");
+                long ms = SystemClock.elapsedRealtime(), ns = SystemClock.elapsedRealtimeNanos();
+                BridgeState.gaze = new GazeStatus(GazeStatus.Link.SUBSCRIBED, "192.0.2.10:50001",
+                        "0123456789abcdef", 7, ms + 3000, ns, true, "");
+                BridgeState.gazePackets = 12;
+                click(R.id.tab_gaze);
+                check(text(R.id.gaze_status).equals("Subscribed"), "Subscription is distinct from local transmission");
+                check(text(R.id.gaze_data).equals("Transmission off"), "Shared eye switch is respected");
+                check(text(R.id.gaze_client).equals("192.0.2.10:50001"), "Gaze endpoint");
+                check(text(R.id.gaze_id).equals("0123456789abcdef"), "Subscription ID");
+                check(text(R.id.gaze_epoch).equals("0000000000000007"), "Epoch");
+                check(text(R.id.gaze_packets).equals("12"), "Gaze packet count");
+                click(R.id.gaze_eye_settings);
+                check(activity.findViewById(R.id.page_avatar).getVisibility() == View.VISIBLE, "Gaze settings links to the shared switch");
+                click(R.id.switch_eye);
+                ns = SystemClock.elapsedRealtimeNanos(); ms = SystemClock.elapsedRealtime();
+                BridgeState.gaze = new GazeStatus(GazeStatus.Link.SUBSCRIBED, "192.0.2.10:50001",
+                        "0123456789abcdef", 7, ms + 3000, ns, false, "");
+                click(R.id.tab_gaze);
+                check(text(R.id.gaze_data).equals("Fresh sample · invalid gaze"), "Invalid gaze is not reported as valid");
+                BridgeState.gaze = new GazeStatus(GazeStatus.Link.SUBSCRIBED, "192.0.2.10:50001",
+                        "0123456789abcdef", 7, ms - 1, ns, true, "");
+                click(R.id.tab_gaze);
+                check(text(R.id.gaze_status).equals("Subscription expired"), "Lease expiration visible without another packet");
+                click(R.id.language_zh);
+                check(activity.findViewById(R.id.page_gaze).getVisibility() == View.VISIBLE, "Language change preserves the selected page");
+                check(text(R.id.gaze_status).equals("订阅已过期"), "Chinese subscription state");
+                click(R.id.tab_diagnostics);
+                click(R.id.show_logs);
+                check(activity.findViewById(R.id.diagnostic_logs).getVisibility() == View.VISIBLE, "Logs have their own diagnostics page");
+                click(R.id.show_logs);
+                check(activity.findViewById(R.id.diagnostic_logs).getVisibility() == View.GONE, "Logs can be collapsed");
             });
+            waitForIdleSync(); screenshot("ui-diagnostics.png");
+            runOnMainSync(() -> click(R.id.tab_gaze));
+            waitForIdleSync(); screenshot("ui-gaze.png");
             result.putString("stream", "PASS: " + checks + " bilingual UI/persistence/selection checks\n");
             resultCode = Activity.RESULT_OK;
         } catch (Throwable failure) {
@@ -86,6 +127,7 @@ public final class BridgeUiTest extends Instrumentation {
                 else edit.remove(key);
             }
             edit.commit();
+            BridgeState.gaze = previousGaze; BridgeState.gazePackets = previousPackets;
             if (activity != null) runOnMainSync(() -> activity.finish());
         }
         finish(resultCode, result);

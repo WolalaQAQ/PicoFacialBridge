@@ -11,6 +11,7 @@ final class BridgeState {
     static volatile long packets, eyeFrames, faceFrames;
     static volatile long ringOverruns;
     static volatile long gazePackets;
+    static volatile GazeStatus gaze = GazeStatus.idle(GazeStatus.Link.STOPPED);
     static final TransmissionRates rates = new TransmissionRates();
     static final TransmissionRates gazeRates = new TransmissionRates();
     private static final ArrayDeque<String> logs = new ArrayDeque<>();

@@ -95,9 +95,13 @@ Keep **Transmit eye tracking** enabled in Bridge. Its local eye switch also gate
 
 The direct client has been tested with real PICO gaze, an active NVIDIA 616.92 consumer and successful submissions in normally EAC-protected VRChat. This confirms the transport and consumer path; visible VRSS region alignment and tracking were not confirmed.
 
-The direct path has host and synthetic loopback coverage; headset coexistence and VRSS rendering still need hardware validation.
+Headset replay covered independent avatar/gaze start and stop, face-only continuity and the local eye-transmission switch. Actual module coexistence and Bridge process restart were exercised separately.
 
 ## Interface
+
+The dashboard has **Eye & face**, **Gaze**, and **Diagnostics** pages. Service status, tracking mode and Start / Stop / Restart remain above the page navigation. Language changes preserve the selected page and existing transmission settings.
+
+On short landscape windows, the whole dashboard scrolls so the service controls do not crowd out the page content. Narrow windows place the language controls below the title and stack the eye/face cards.
 
 | Control or status | Description |
 |---|---|
@@ -106,7 +110,10 @@ The direct path has host and synthetic loopback coverage; headset coexistence an
 | Send eye / Send face | Control transmission of each channel separately; changes take effect immediately and are saved |
 | Both off | Pauses tracking capture and data transmission while keeping discovery and control communication available |
 | Eye / Face Hz | Source frames successfully sent to the avatar client in the last second; not the capture rate or a display frame rate |
-| Gaze client / Gaze Hz | Independent native-gaze endpoint and its successful source-frame send rate; can be active with no VRCFT client |
+| Gaze page | Independent subscription state, endpoint, ID, epoch, remaining lease, successful source send rate and packet count |
+| Native sample | Distinguishes waiting, valid fresh gaze, invalid gaze and expired samples; source age is shown separately |
+| Eye transmission settings | Returns to the shared eye switch; disabling it affects avatar eyes and independent gaze together |
+| Diagnostics page | Capture mode, headset UDP address, native frame counts, ring history overruns, latest errors and expandable/copyable logs |
 | 0 Hz | No client, the channel is off, or there are no new samples; repeated samples and heartbeats are not counted |
 | Waiting for fresh tracking data | Put on and wake the headset, and check the system tracking settings and permissions |
 | English / 中文 | Switches the interface and notification language without affecting tracking |
