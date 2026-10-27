@@ -1,6 +1,6 @@
 # Independent native-gaze subscription
 
-This development protocol lets a PC gaze consumer read PicoFacialBridge directly while an existing BridgeSplit avatar client remains connected. It does not require VRCFaceTracking or UnifiedPicoModule. Published Bridge 0.5.0 APKs do not implement these commands.
+Bridge 0.6.0 and later let a PC gaze consumer read PicoFacialBridge directly while an existing BridgeSplit avatar client remains connected. This protocol does not require VRCFaceTracking or UnifiedPicoModule. Bridge 0.5.0 APKs do not implement these commands.
 
 ## Transport and ownership
 

@@ -7,24 +7,24 @@
 ## 发布到 GitHub Releases
 
 1. 提交并推送源码及[工作流](../.github/workflows/android.yml)。发布新的应用版本时，在 `bridge/build.gradle` 更新 `versionName` 并递增 `versionCode`，并在 `CHANGELOG.md` 和 `CHANGELOG_zh.md` 中都加上 `## [<版本>]` 一节。
-2. 在该提交上推送 tag。标签必须等于 `v` + `versionName`，例如当前版本使用 **`v0.5.0`**：
+2. 在该提交上推送 tag。标签必须等于 `v` + `versionName`，例如当前版本使用 **`v0.6.0`**：
 
    ```powershell
-   git tag -a v0.5.0 -m "PicoFacialBridge v0.5.0"
-   git push origin v0.5.0
+   git tag -a v0.6.0 -m "PicoFacialBridge v0.6.0"
+   git push origin v0.6.0
    ```
 
    带后缀的标签（例如 `v0.6.0-rc.1`）会发布为 Pre-release；构建仍需实机验收时可以这样用。
-3. 等待 **Android CI and Release** 运行完成。它会创建标题为 `PicoFacialBridge v0.5.0` 的 Release，说明为中英文更新日志中对应版本的内容。从该 Release 的 **Assets** 下载：
+3. 等待 **Android CI and Release** 运行完成。它会创建标题为 `PicoFacialBridge v0.6.0` 的 Release，说明为中英文更新日志中对应版本的内容。从该 Release 的 **Assets** 下载：
 
    ```text
-   PicoFacialBridge-v0.5.0-arm64-v8a-debug.apk
+   PicoFacialBridge-v0.6.0-arm64-v8a-debug.apk
    SHA256SUMS.txt
    LICENSE
    THIRD_PARTY_NOTICES.md
    ```
 
-工作流会执行主机测试、翻译检查和 Android lint，构建 APK、验证自动签名，全部通过后才创建 Release，附件上传完成再公开。文件名明确标注 **debug 构建**：它允许调试，但可以正常安装和使用。不需要手动签名，也不需要 Play Console 账号。标签与 `versionName` 不一致，或更新日志缺少该版本的一节时，工作流会在发布前失败。
+工作流会执行主机测试、界面源码检查、翻译检查和 Android lint，构建 APK、验证自动签名，全部通过后才创建 Release，附件上传完成再公开。文件名明确标注 **debug 构建**：它允许调试，但可以正常安装和使用。不需要手动签名，也不需要 Play Console 账号。标签与 `versionName` 不一致，或更新日志缺少该版本的一节时，工作流会在发布前失败。
 
 上传使用 GitHub 自带的 `GITHUB_TOKEN`；仓库／组织策略需要允许 Actions 和发布任务的 `contents: write` 权限。标签对应的源码必须包含此工作流。
 

@@ -2,7 +2,7 @@
 
 English | [简体中文](CHANGELOG_zh.md)
 
-## [Unreleased] - 2026-10-28
+## [0.6.0] - 2026-10-28
 
 ### Features
 - Add a direct native-gaze subscription alongside the existing BridgeSplit avatar session, with its own endpoint, ID, epoch and renewable lease.

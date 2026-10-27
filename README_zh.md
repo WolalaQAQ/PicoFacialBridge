@@ -11,7 +11,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 **[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> Avatar 眼面捕使用 BridgeSplit 协议，PC 端须运行 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。旧版 PicoFacialDataModule 及其分支无法接收该格式；仍需旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。下文的独立原生视线订阅需要开发构建，已发布的0.5.0 APK尚不包含它。
+> Avatar 眼面捕使用 BridgeSplit 协议，PC 端须运行 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。旧版 PicoFacialDataModule 及其分支无法接收该格式；仍需旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。下文的独立原生视线订阅需要 Bridge 0.6.0 或更高版本，0.5.0 APK 不包含它。
 
 ## 功能
 
@@ -59,7 +59,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 2. 使用常用的头显 APK 安装工具侧载。也可以在头显上启用开发者模式与 USB 调试，连接并授权后，使用 [Android platform-tools](https://developer.android.com/tools/releases/platform-tools) 安装：
 
    ```sh
-   adb install -r PicoFacialBridge-v0.5.0-arm64-v8a-debug.apk
+   adb install -r PicoFacialBridge-v0.6.0-arm64-v8a-debug.apk
    ```
 
 3. 在头显的 2D 应用列表中打开 PicoFacialBridge。确认系统设置中已启用眼动与面部追踪，点击启动，并授予应用请求的两项追踪权限。
@@ -87,7 +87,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 本应用不会开机自启。头显重启后，需要重新打开应用并启动。
 
-### 独立原生视线（开发构建）
+### 独立原生视线
 
 兼容的视线客户端从自己的PC UDP端口，直接连接头显地址的UDP9030；这条路径不需要运行VRCFT。原有眼面捕客户端仍可独立连接和停止，停止其中一个客户端不会退订另一个。
 

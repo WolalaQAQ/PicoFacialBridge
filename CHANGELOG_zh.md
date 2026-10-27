@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md) | 简体中文
 
-## [Unreleased] - 2026-10-28
+## [0.6.0] - 2026-10-28
 
 ### 新增
 - 在原BridgeSplit Avatar会话之外，增加直接原生视线订阅，独立维护接收端、订阅ID、epoch和可续期租约。

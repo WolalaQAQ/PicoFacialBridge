@@ -11,7 +11,7 @@ The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy 
 
 **[Download APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [Report an issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
 
-> Avatar tracking uses BridgeSplit and requires [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule). The earlier PicoFacialDataModule and its forks cannot receive this format; use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) if you still need the old protocol. The separate native-gaze subscription described below requires a development build and is not in the published 0.5.0 APK.
+> Avatar tracking uses BridgeSplit and requires [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule). The earlier PicoFacialDataModule and its forks cannot receive this format; use [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0) if you still need the old protocol. The separate native-gaze subscription described below requires Bridge 0.6.0 or later; 0.5.0 APKs do not implement it.
 
 ## Features
 
@@ -59,7 +59,7 @@ After a full headset reboot, starting the bridge and reconnecting the PC deliver
 2. Sideload it with your usual headset APK installer. Alternatively, enable developer mode and USB debugging on the headset, connect and authorize it, then install with [Android platform-tools](https://developer.android.com/tools/releases/platform-tools):
 
    ```sh
-   adb install -r PicoFacialBridge-v0.5.0-arm64-v8a-debug.apk
+   adb install -r PicoFacialBridge-v0.6.0-arm64-v8a-debug.apk
    ```
 
 3. Open PicoFacialBridge from the headset's 2D app list. Make sure eye and face tracking are enabled in the system settings, tap Start, and grant both tracking permissions the app requests.
@@ -87,7 +87,7 @@ Replace the example with the headset IPv4 address shown in PicoFacialBridge, the
 
 The app does not start automatically at boot. After the headset restarts, open the app and start it again.
 
-### Independent native gaze (development build)
+### Independent native gaze
 
 A compatible gaze client connects directly to the headset address on UDP9030 from its own PC UDP port. VRCFT is not required for this path. The existing eye/face client can connect and stop independently; stopping one client does not unsubscribe the other.
 
