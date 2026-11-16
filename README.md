@@ -25,7 +25,7 @@ The app does not require root, Magisk, Shizuku or PICO Connect, does not occupy 
 
 ## Enhanced mode
 
-On a headset with the [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) Magisk module active, the bridge detects enhanced mode on its own and forwards real pupil diameter and independent per-eye expressions to the PC; everything else in this README works the same without root or the module. See the PicoET-Enhance README for its features, installation and matching Bridge/UnifiedPicoModule requirements.
+On a headset with the [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) Magisk module active, the bridge detects enhanced mode on its own and forwards real pupil diameter and independent per-eye expressions to the PC. Matching development modules include their own headset postprocessing panel, separate from this rootless bridge; see the PicoET-Enhance README for parameters, installation and matching module requirements.
 
 ## Compatibility
 
@@ -59,7 +59,7 @@ After a full headset reboot, starting the bridge and reconnecting the PC deliver
 2. Sideload it with your usual headset APK installer. Alternatively, enable developer mode and USB debugging on the headset, connect and authorize it, then install with [Android platform-tools](https://developer.android.com/tools/releases/platform-tools):
 
    ```sh
-   adb install -r PicoFacialBridge-v0.6.0-arm64-v8a-debug.apk
+    adb install -r PicoFacialBridge-v0.7.0-arm64-v8a-debug.apk
    ```
 
 3. Open PicoFacialBridge from the headset's 2D app list. Make sure eye and face tracking are enabled in the system settings, tap Start, and grant both tracking permissions the app requests.
@@ -85,8 +85,6 @@ Replace the example with the headset IPv4 address shown in PicoFacialBridge, the
 3. Start VRChat and enable OSC.
 4. When finished, tap Stop in the app or the persistent notification.
 
-The app does not start automatically at boot. After the headset restarts, open the app and start it again.
-
 ### Independent native gaze
 
 A compatible gaze client connects directly to the headset address on UDP9030 from its own PC UDP port. VRCFT is not required for this path. The existing eye/face client can connect and stop independently; stopping one client does not unsubscribe the other.
@@ -110,6 +108,9 @@ On short landscape windows, the whole dashboard scrolls so the service controls 
 | Send eye / Send face | Control transmission of each channel separately; changes take effect immediately and are saved |
 | Both off | Pauses tracking capture and data transmission while keeping discovery and control communication available |
 | Eye / Face Hz | Source frames successfully sent to the avatar client in the last second; not the capture rate or a display frame rate |
+| Diagnostics → Tracking values | First entry opens Eye expr. / Cheeks / Mouth / Native regions, defaulting to Eye expr.: native pupil, openness, per-eye and combined gaze, plus the 52+1 expressions in 32 bilateral/single rows |
+| Inspector tools ⋯ | Search fields, filter valid nonzero values, inspect units and source ages, or view source snapshots and the last successful E/A/F/X sends with flags, masks, epochs and group clocks |
+| Freeze / Live | Pause or resume displayed readings without interrupting tracking or forwarding; the back button or system Back returns to Diagnostics |
 | Gaze page | Independent subscription state, endpoint, ID, epoch, remaining lease, successful source send rate and packet count |
 | Native sample | Distinguishes waiting, valid fresh gaze, invalid gaze and expired samples; source age is shown separately |
 | Eye transmission settings | Returns to the shared eye switch; disabling it affects avatar eyes and independent gaze together |
@@ -121,6 +122,10 @@ On short landscape windows, the whole dashboard scrolls so the service controls 
 PICO's eye and face tracking share one algorithm, so both permissions are required even when only one channel is transmitted. The transmission switches only control whether data is sent; they do not control camera power.
 
 The channels actually sent are the intersection of the local transmission switches and the PC's subscription. When only eye data is transmitted, eye-region expressions such as blink, brows, EyeWide and EyeSquint are sent alongside the native eye data, and Face Hz shows 0. When only face data is transmitted, neither native eye data nor eye-region expressions are sent.
+
+The inspector shows Bridge-side values, not final PC-module or avatar output. The native-eye tab shows both raw wire pupil values and millimeters (raw ÷ 10), 0–1 openness, and signed XYZ direction components; expression bars retain their 0–1 scale. Numbers are not clamped to the display scale, and out-of-scale values are amber. Invalid, expired, mode-filtered, uncaptured and disabled readings have separate states rather than estimated pupils or fabricated zeroes.
+
+Start tracking and enable the channels you want to inspect; opening this screen does not request extra capture or change PC subscriptions. While visible, it reads the latest source values on each display frame, without interpolation or a fixed 10 Hz limit; leaving the screen stops its frame callbacks. A source snapshot does not prove transmission. “Sent packet details” lists the last successful avatar-eye, avatar-expression and independent-gaze packets separately, preserving each historical source timestamp and epoch.
 
 ## Troubleshooting
 

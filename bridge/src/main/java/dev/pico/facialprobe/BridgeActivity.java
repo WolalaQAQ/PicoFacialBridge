@@ -46,10 +46,11 @@ public final class BridgeActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         prefs = BridgePreferences.get(this); ui = new BridgeUi(this);
-        if (saved != null) { selectedTab = saved.getInt("tab"); showingLogs = saved.getBoolean("logs"); }
+        if (saved != null) {
+            selectedTab = saved.getInt("tab"); showingLogs = saved.getBoolean("logs");
+        }
         getWindow().setStatusBarColor(BG); getWindow().setNavigationBarColor(BG);
         buildUi();
-        if (getIntent().getBooleanExtra("autostart", false)) permissionsThen(BridgeService.START);
     }
     private String s(int id, Object... args) { return localized.getString(id, args); }
     private String shown(String value) { return value.isEmpty() ? "—" : value; }
@@ -205,6 +206,9 @@ public final class BridgeActivity extends Activity {
         ui.text(parent, s(R.string.ui_gaze_note), 13, MUTED);
     }
     private void buildDiagnostics(LinearLayout parent) {
+        ui.button(parent, s(R.string.expressions_open),
+                () -> startActivity(new Intent(this, ExpressionActivity.class))).setId(R.id.show_expressions);
+        ui.gap(parent, 12);
         LinearLayout runtime = ui.card(parent); ui.title(runtime, s(R.string.ui_runtime));
         ui.gap(runtime, 12); modeText = ui.text(runtime, "", 15, TEXT); modeText.setId(R.id.mode);
         address = ui.field(runtime, s(R.string.ui_address), R.id.diagnostic_address, true);
@@ -331,7 +335,8 @@ public final class BridgeActivity extends Activity {
         gazeError.setTextColor(snapshot.error.isEmpty() ? MUTED : RED);
     }
     @Override public void onSaveInstanceState(Bundle saved) {
-        saved.putInt("tab", selectedTab); saved.putBoolean("logs", showingLogs); super.onSaveInstanceState(saved);
+        saved.putInt("tab", selectedTab); saved.putBoolean("logs", showingLogs);
+        super.onSaveInstanceState(saved);
     }
     @Override public void onResume() { super.onResume(); main.post(refresh); }
     @Override public void onPause() { main.removeCallbacks(refresh); super.onPause(); }

@@ -55,8 +55,11 @@ jobs:
       - name: Run core, protocol, cadence and UDP loopback tests
         run: bash tests/run-host-tests.sh
 
-      - name: Check dashboard source contract
-        run: python3 tests/test_ui_dashboard.py
+      - name: Check dashboard and rootless source contracts
+        run: |
+          python3 tests/test_ui_dashboard.py
+          python3 tests/test_inspector_frames.py
+          python3 tests/test_rootless_boundary.py
 
       - name: Check English and Chinese resources
         shell: pwsh

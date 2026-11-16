@@ -7,18 +7,18 @@
 ## 发布到 GitHub Releases
 
 1. 提交并推送源码及[工作流](../.github/workflows/android.yml)。发布新的应用版本时，在 `bridge/build.gradle` 更新 `versionName` 并递增 `versionCode`，并在 `CHANGELOG.md` 和 `CHANGELOG_zh.md` 中都加上 `## [<版本>]` 一节。
-2. 在该提交上推送 tag。标签必须等于 `v` + `versionName`，例如当前版本使用 **`v0.6.0`**：
+2. 在该提交上推送 tag。标签必须等于 `v` + `versionName`，例如当前版本使用 **`v0.7.0`**：
 
    ```powershell
-   git tag -a v0.6.0 -m "PicoFacialBridge v0.6.0"
-   git push origin v0.6.0
+    git tag -a v0.7.0 -m "PicoFacialBridge v0.7.0"
+    git push origin v0.7.0
    ```
 
-   带后缀的标签（例如 `v0.6.0-rc.1`）会发布为 Pre-release；构建仍需实机验收时可以这样用。
-3. 等待 **Android CI and Release** 运行完成。它会创建标题为 `PicoFacialBridge v0.6.0` 的 Release，说明为中英文更新日志中对应版本的内容。从该 Release 的 **Assets** 下载：
+    带后缀的标签（例如 `v0.7.0-rc.1`）会发布为 Pre-release；构建仍需实机验收时可以这样用。
+3. 等待 **Android CI and Release** 运行完成。它会创建标题为 `PicoFacialBridge v0.7.0` 的 Release，说明为中英文更新日志中对应版本的内容。从该 Release 的 **Assets** 下载：
 
    ```text
-   PicoFacialBridge-v0.6.0-arm64-v8a-debug.apk
+    PicoFacialBridge-v0.7.0-arm64-v8a-debug.apk
    SHA256SUMS.txt
    LICENSE
    THIRD_PARTY_NOTICES.md

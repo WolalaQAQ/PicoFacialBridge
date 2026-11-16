@@ -12,6 +12,9 @@ final class BridgeState {
     static volatile long ringOverruns;
     static volatile long gazePackets;
     static volatile GazeStatus gaze = GazeStatus.idle(GazeStatus.Link.STOPPED);
+    static volatile ExpressionStatus expressions = ExpressionStatus.empty();
+    static volatile NativeEyeStatus nativeEye = NativeEyeStatus.empty();
+    static volatile OutputStatus outputs = OutputStatus.empty();
     static final TransmissionRates rates = new TransmissionRates();
     static final TransmissionRates gazeRates = new TransmissionRates();
     private static final ArrayDeque<String> logs = new ArrayDeque<>();

@@ -94,6 +94,8 @@ public final class BridgeService extends Service {
         cancel.set(false); working = true;
         BridgeState.status = R.string.status_starting; BridgeState.detail = R.string.detail_connecting; BridgeState.error = "";
         BridgeState.rates.reset();
+        BridgeState.expressions = ExpressionStatus.empty();
+        BridgeState.nativeEye = NativeEyeStatus.empty(); BridgeState.outputs = OutputStatus.empty();
         new Thread(() -> {
             boolean failed = false;
             try { runBridge(); }
@@ -118,6 +120,13 @@ public final class BridgeService extends Service {
         for (String p : new String[]{"com.picovr.permission.EYE_TRACKING", "com.picovr.permission.FACE_TRACKING"}) {
             if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) throw new SecurityException("Grant permission in app: " + p);
         }
+        NetworkInterface network = NetworkInterface.getByName("wlan0");
+        if (network == null || !network.isUp()) throw new IllegalStateException("Connect headset to Wi-Fi first");
+        InetAddress own = null;
+        for (Enumeration<InetAddress> it = network.getInetAddresses(); it.hasMoreElements();) {
+            InetAddress candidate = it.nextElement(); if (candidate instanceof Inet4Address) own = candidate;
+        }
+        if (own == null) throw new IllegalStateException("Wi-Fi has no IPv4 address");
         BridgeState.log("BEGIN uid=" + android.os.Process.myUid() + " pid=" + android.os.Process.myPid() + " no OpenXR session");
         TrackingSession session = new TrackingSession(BridgeState::log);
         MulticastSocket socket = null;
@@ -129,13 +138,6 @@ public final class BridgeService extends Service {
             wake.acquire();
             multicast = ((WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE)).createMulticastLock("PicoFacialBridge:discovery");
             multicast.setReferenceCounted(false); multicast.acquire();
-            NetworkInterface network = NetworkInterface.getByName("wlan0");
-            if (network == null || !network.isUp()) throw new IllegalStateException("Connect headset to Wi-Fi first");
-            InetAddress own = null;
-            for (Enumeration<InetAddress> it = network.getInetAddresses(); it.hasMoreElements();) {
-                InetAddress candidate = it.nextElement(); if (candidate instanceof Inet4Address) own = candidate;
-            }
-            if (own == null) throw new IllegalStateException("Wi-Fi has no IPv4 address");
             BridgeState.address = own.getHostAddress() + ":9030";
             socket = new MulticastSocket(null); socket.setReuseAddress(true); socket.bind(new InetSocketAddress(9030));
             socket.setSoTimeout(1); socket.setNetworkInterface(network); socket.setTimeToLive(1);
@@ -157,6 +159,10 @@ public final class BridgeService extends Service {
             long nextStart = 0, nextLog = 0, nextAdvert = 0, nextModeCheck = 0, reportedOverruns=0;
             int lastSelection = transmitMask;
             FramePump pump=new FramePump();
+            FramePump observedPump = null;
+            ExpressionStatus.Accumulator expressions = new ExpressionStatus.Accumulator();
+            NativeEyeStatus.Accumulator nativeEye = new NativeEyeStatus.Accumulator();
+            final OutputStatus.Accumulator outputs = new OutputStatus.Accumulator();
             long lastEyeFresh = SystemClock.elapsedRealtime(), lastMorphologyFresh = lastEyeFresh;
             String startError = null;
             while (!cancel.get()) {
@@ -300,6 +306,7 @@ public final class BridgeService extends Service {
                                 byte[] gazePacket = gaze.next(eyes, nano);
                                 if (gazePacket != null) {
                                     socket.send(new DatagramPacket(gazePacket, gazePacket.length, gazeEndpoint));
+                                    outputs.sent(gazePacket, true);
                                     BridgeState.gazePackets++;
                                     BridgeState.gazeRates.sent(nano, TrackingData.packetTimestamp(gazePacket), 0);
                                 }
@@ -322,6 +329,7 @@ public final class BridgeService extends Service {
                     synchronized (transmissionLock) {
                         if(destination!=null && localSelection == transmitMask && !cancel.get()){
                             sendingSocket.send(new DatagramPacket(payload,payload.length,destination));
+                            outputs.sent(payload, false);
                             sendingLedger.add(payload);BridgeState.packets++;
                             xDelivery.sent(payload, SystemClock.elapsedRealtimeNanos());
                             BridgeState.rates.sent(SystemClock.elapsedRealtimeNanos(),
@@ -330,6 +338,16 @@ public final class BridgeService extends Service {
                         }
                     }
                 });
+                if (pump != observedPump) {
+                    expressions = new ExpressionStatus.Accumulator(); observedPump = pump;
+                    nativeEye = new NativeEyeStatus.Accumulator();
+                }
+                expressions.accept(faces, active ? primaryCaptureSelection : 0);
+                nativeEye.accept(eyes, active ? captureSelection : 0);
+                // Publish new observations immediately; unchanged immutable snapshots are reused.
+                BridgeState.expressions = expressions.snapshot();
+                BridgeState.nativeEye = nativeEye.snapshot(BridgeState.mode.keepPerEyeGaze());
+                BridgeState.outputs = outputs.snapshot(localSelection, peer.requestedMask(), selection, peer.epoch(), peer.subscribed());
                 byte[] eye = active ? pump.eye() : null;
                 long eyeTime = eye == null ? 0 : TrackingData.eyeTimestamp(eye);
                 BridgeState.eye = TrackingData.eyeValid(eye) && TrackingData.fresh(nano, eyeTime);
@@ -369,6 +387,8 @@ public final class BridgeService extends Service {
             BridgeState.rates.reset();
             BridgeState.gazeClient = ""; BridgeState.gazeRates.reset();
             BridgeState.gaze = GazeStatus.idle(GazeStatus.Link.STOPPED);
+            BridgeState.expressions = ExpressionStatus.empty();
+            BridgeState.nativeEye = NativeEyeStatus.empty(); BridgeState.outputs = OutputStatus.empty();
             BridgeState.log("END worker cleanup complete");
         }
     }

@@ -2,6 +2,21 @@
 
 English | [简体中文](CHANGELOG_zh.md)
 
+## [0.7.0] - 2026-11-17
+
+### Features
+- Add Tracking values as the first Diagnostics entry, with Eye expr. / Cheeks / Mouth / Native tabs, defaulting to Eye expr. View all 52+1 expressions, pupil diameter in raw units and mm, native openness, gaze XYZ and status words.
+- Add bilingual paired readings, quantity-appropriate bars, search, valid-nonzero filtering and display freeze. Sent packet details show source snapshots and the last successful avatar/gaze E/A/F/X sends, including masks, quality, epochs and group clocks.
+- Refresh visible readings on display frames using the latest source values, without a fixed 10 Hz limit or interpolation.
+
+### Design Rationale
+- Keep debugging under Diagnostics, with a fixed toolbar and independently scrolling readings.
+- Publish new immutable snapshots as observations arrive and reuse unchanged snapshots, without changing capture, forwarding cadence or subscriptions. Preserve separate left/right/mouth source clocks and distinguish observed values from successful UDP sends.
+
+### Notes & Caveats
+- Readings are Bridge-side values before PC processing, not final avatar output. Invalid, stale, disabled, uncaptured and mode-filtered data are distinct from zero; independent right inner brow requires EPI1.
+- Existing BridgeSplit and independent-gaze clients remain compatible. Samples inspected by this screen stay in memory and are not written to logs.
+
 ## [0.6.0] - 2026-10-28
 
 ### Features

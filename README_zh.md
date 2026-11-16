@@ -25,7 +25,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 
 ## 增强模式
 
-头显上启用 [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) Magisk 模块后，Bridge 会自动识别增强模式，并向 PC 转发真实瞳孔直径和逐眼独立表情；本文其余功能不依赖 Root 或该模块。模块的作用、安装方法与所需的 Bridge／UnifiedPicoModule 配套版本请见 PicoET-Enhance 的 README。
+头显上启用 [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) Magisk 模块后，Bridge 会自动识别增强模式，并向 PC 转发真实瞳孔直径和逐眼独立表情。配套开发模块附带独立的头显后处理面板，Bridge始终免Root；参数、安装及配套要求见PicoET-Enhance的README。
 
 ## 兼容性
 
@@ -59,7 +59,7 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 2. 使用常用的头显 APK 安装工具侧载。也可以在头显上启用开发者模式与 USB 调试，连接并授权后，使用 [Android platform-tools](https://developer.android.com/tools/releases/platform-tools) 安装：
 
    ```sh
-   adb install -r PicoFacialBridge-v0.6.0-arm64-v8a-debug.apk
+    adb install -r PicoFacialBridge-v0.7.0-arm64-v8a-debug.apk
    ```
 
 3. 在头显的 2D 应用列表中打开 PicoFacialBridge。确认系统设置中已启用眼动与面部追踪，点击启动，并授予应用请求的两项追踪权限。
@@ -85,8 +85,6 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 3. 启动 VRChat 并开启 OSC。
 4. 结束使用时，在应用或常驻通知中点击停止。
 
-本应用不会开机自启。头显重启后，需要重新打开应用并启动。
-
 ### 独立原生视线
 
 兼容的视线客户端从自己的PC UDP端口，直接连接头显地址的UDP9030；这条路径不需要运行VRCFT。原有眼面捕客户端仍可独立连接和停止，停止其中一个客户端不会退订另一个。
@@ -110,6 +108,9 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 | 传输眼追 / 传输面捕 | 分别控制两个通道的发送，修改立即生效并被保存 |
 | 两项均关闭 | 暂停追踪采集与数据发送，保留发现与控制通信 |
 | 眼追 / 面捕 Hz | 最近一秒成功发给Avatar客户端的源帧数，不是采集频率或画面帧率 |
+| 诊断 → 追踪数值 | 第一项进入专用子页，按眼眉／面颊／嘴部／眼动切换，默认眼眉；原生瞳孔、睁眼度、逐眼及合并视线均可查看，52＋1 项表情仍按 32 行左右成对排列 |
+| 监视工具 ⋯ | 搜索字段、筛选有效非零读数、查看单位与源年龄；发送包详情提供源快照及最近成功发送的 E／A／F／X 原包字段，包括有效位、掩码、epoch 和分组时钟 |
+| 冻结 / 继续 | 暂停或恢复读数显示，不影响追踪与网络转发；返回按钮或系统返回键回到诊断 |
 | Gaze 视线页 | 独立订阅状态、客户端地址、ID、epoch、租约剩余、成功发送的新源频率及包数 |
 | 原生样本 | 区分等待样本、新鲜有效、视线无效及样本过期，另行显示最新源样本年龄 |
 | 前往眼追传输设置 | 返回共用的眼追开关；关闭会同时影响 Avatar 眼部和独立 gaze 输出 |
@@ -121,6 +122,10 @@ PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显
 PICO 的眼动与面部追踪共用同一套算法，因此即使只传输一个通道，也需要授予两项权限。传输开关只控制数据是否发送，不控制摄像头电源。
 
 实际发送的通道是本地传输开关与 PC 端订阅的交集。只传输眼动时，除原生眼动数据外，还会发送眨眼、眉毛、EyeWide 与 EyeSquint 等眼周表情，此时面捕 Hz 显示为 0；只传输面部时，不发送眼动数据和眼周表情。
+
+追踪监视显示 Bridge 侧数值，不是 PC 模块或 Avatar 的最终输出。眼动页同时显示瞳孔线上原值及除以 10 后的毫米值，原生睁眼度用 0–1，视线 XYZ 用带正负的方向尺度；表情强度条仍用 0–1。数值不随强度条限幅，超出显示尺度时标为琥珀色。无效、过期、模式过滤、未采集和关闭均有独立状态，不以默认瞳孔或零值代替。
+
+请先启动追踪并启用所需通道；打开子页不会额外采集或改变 PC 订阅。页面可见时随屏幕刷新读取最新源值，不插值、不固定限制为10Hz；离开页面后停止帧回调。源快照不代表数据已经发出，工具菜单中的“发送包详情”按 Avatar 眼动、Avatar 表情和独立 gaze 分别列出最近成功发送的原包；历史包保留其原时间和 epoch。
 
 ## 故障排查
 

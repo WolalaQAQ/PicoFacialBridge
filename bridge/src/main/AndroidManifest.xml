@@ -13,5 +13,6 @@
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
         <service android:name="dev.pico.facialprobe.BridgeService" android:exported="false" android:stopWithTask="false" android:foregroundServiceType="connectedDevice" />
+        <activity android:name="dev.pico.facialprobe.ExpressionActivity" android:exported="false" />
     </application>
 </manifest>

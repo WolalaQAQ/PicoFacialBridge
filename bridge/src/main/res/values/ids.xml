@@ -11,6 +11,20 @@
     <item name="status" type="id" />
     <item name="mode" type="id" />
     <item name="tab_avatar" type="id" />
+    <item name="show_expressions" type="id" />
+    <item name="expression_screen" type="id" />
+    <item name="expression_native" type="id" />
+    <item name="native_flags" type="id" />
+    <item name="native_readouts" type="id" />
+    <item name="expression_back" type="id" />
+    <item name="expression_menu" type="id" />
+    <item name="expression_eyes" type="id" />
+    <item name="expression_face" type="id" />
+    <item name="expression_mouth" type="id" />
+    <item name="expression_summary" type="id" />
+    <item name="expression_search" type="id" />
+    <item name="expression_freeze" type="id" />
+    <item name="expression_empty" type="id" />
     <item name="tab_gaze" type="id" />
     <item name="tab_diagnostics" type="id" />
     <item name="page_avatar" type="id" />

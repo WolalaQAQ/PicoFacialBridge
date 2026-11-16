@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.View;
 import android.widget.Switch;
+import android.widget.EditText;
 import android.widget.TextView;
 import java.util.Map;
 import java.io.File;
@@ -18,16 +19,20 @@ import java.io.FileOutputStream;
 /** Device UI smoke test using platform instrumentation only, no downloaded test frameworks. */
 public final class BridgeUiTest extends Instrumentation {
     private BridgeActivity activity;
+    private ExpressionActivity monitorActivity;
     private int checks;
-    @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
+    @Override public void onCreate(Bundle args) {
+        super.onCreate(args); start();
+    }
     private void check(boolean condition, String message) {
         checks++; if (!condition) throw new AssertionError(message);
     }
-    private String text(int id) { return ((TextView) activity.findViewById(id)).getText().toString(); }
-    private void click(int id) { activity.findViewById(id).performClick(); }
+    private Activity screen() { return monitorActivity == null ? activity : monitorActivity; }
+    private String text(int id) { return ((TextView) screen().findViewById(id)).getText().toString(); }
+    private void click(int id) { screen().findViewById(id).performClick(); }
     private void screenshot(String name) {
         runOnMainSync(() -> {
-            android.view.View view = activity.getWindow().getDecorView();
+            android.view.View view = screen().getWindow().getDecorView();
             Bitmap bitmap = Bitmap.createBitmap(view.getWidth(), view.getHeight(), Bitmap.Config.ARGB_8888);
             view.draw(new Canvas(bitmap));
             try (FileOutputStream out = new FileOutputStream(new File(getTargetContext().getFilesDir(), name))) {
@@ -37,15 +42,109 @@ public final class BridgeUiTest extends Instrumentation {
         });
     }
     private BridgeActivity open() {
-        return (BridgeActivity) startActivitySync(new Intent(getTargetContext(), BridgeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        ActivityMonitor monitor = addMonitor(BridgeActivity.class.getName(), null, false);
+        getTargetContext().startActivity(new Intent(getTargetContext(), BridgeActivity.class)
+                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        Activity started = waitForMonitorWithTimeout(monitor, 10000);
+        removeMonitor(monitor);
+        if (started == null) throw new IllegalStateException("Bridge Activity was not launched within 10 seconds");
+        return (BridgeActivity) started;
+    }
+    private void openMonitor() {
+        runOnMainSync(() -> click(R.id.tab_diagnostics));
+        ActivityMonitor monitor = addMonitor(ExpressionActivity.class.getName(), null, false);
+        runOnMainSync(() -> click(R.id.show_expressions));
+        Activity started = waitForMonitorWithTimeout(monitor, 10000);
+        removeMonitor(monitor);
+        if (started == null) throw new IllegalStateException("Expression inspector did not open within 10 seconds");
+        monitorActivity = (ExpressionActivity) started; waitForIdleSync();
+    }
+    private void inspectorTest() {
+        openMonitor();
+        runOnMainSync(() -> {
+            check(monitorActivity.findViewById(R.id.expression_screen) != null, "Dedicated child screen");
+            check(monitorActivity.findViewById(R.id.start_button) == null, "Service controls do not crowd inspector");
+            ExpressionStatus.Accumulator readings = new ExpressionStatus.Accumulator();
+            byte[] sample = new byte[384]; java.nio.ByteBuffer source = TrackingData.bytes(sample);
+            source.putLong(0, SystemClock.elapsedRealtimeNanos()); source.putFloat(296, 1); source.putFloat(300, 1);
+            for (int shape : TrackingData.EYE_SHAPES) source.putFloat(8 + shape * 4, .35f);
+            readings.accept(java.util.Collections.singletonList(sample), 1);
+            BridgeState.expressions = readings.snapshot(); BridgeState.udp = true;
+            byte[] eye = new byte[200]; java.nio.ByteBuffer nativeSource = TrackingData.bytes(eye);
+            nativeSource.putLong(168, SystemClock.elapsedRealtimeNanos());
+            nativeSource.putInt(0, 0x904); nativeSource.putInt(4, 0x904); nativeSource.putInt(8, 2);
+            nativeSource.putFloat(84, 1); nativeSource.putFloat(88, 1);
+            nativeSource.putFloat(92, 35); nativeSource.putFloat(96, 42);
+            NativeEyeStatus.Accumulator nativeReadings = new NativeEyeStatus.Accumulator();
+            nativeReadings.accept(java.util.Collections.singletonList(eye), 1);
+            BridgeState.nativeEye = nativeReadings.snapshot(true);
+            monitorActivity.render();
+            check(monitorActivity.findViewById(R.id.expression_eyes).isSelected(), "Default tab is eye expressions");
+            check(text(R.id.expression_summary).contains("19 项有效"), "Normal eye-only source has 19 valid expressions");
+            int[] regions = {R.id.expression_eyes, R.id.expression_face, R.id.expression_mouth, R.id.expression_native};
+            android.view.ViewGroup tabs = (android.view.ViewGroup) monitorActivity.findViewById(regions[0]).getParent();
+            for (int i = 0; i < regions.length; i++) {
+                check(tabs.getChildAt(i).getId() == regions[i], "Native gaze is last; expression order is unchanged");
+                ExpressionPanel original = new ExpressionPanel(monitorActivity);
+                original.findViewById(regions[i]).performClick();
+                Bundle saved = new Bundle(); original.saveState(saved);
+                check(saved.getInt("region_id") == regions[i], "Region state stores its control ID, not position");
+                ExpressionPanel restored = new ExpressionPanel(monitorActivity);
+                restored.restoreState(saved);
+                check(restored.findViewById(regions[i]).isSelected(), "Each region restores to the same tab");
+            }
+            click(R.id.expression_native);
+            check(text(R.id.expression_summary).contains("13/13"), "Last tab covers all native floats");
+            check(monitorActivity.findViewById(R.id.native_readouts).getContentDescription().toString().contains("3.5"), "Pupil is displayed in millimeters");
+            click(R.id.expression_mouth);
+            check(text(R.id.expression_summary).contains("0 项有效"), "Mouth tab respects capture channels");
+            click(R.id.expression_eyes);
+            EditText search = monitorActivity.findViewById(R.id.expression_search);
+            check(search.getVisibility() == View.GONE, "Search stays out of the default layout");
+            search.setText("does-not-exist");
+            check(monitorActivity.findViewById(R.id.expression_empty).getVisibility() == View.VISIBLE, "Search empty state");
+            search.setText("EyeBlinkR");
+            check(monitorActivity.findViewById(R.id.expression_empty).getVisibility() == View.GONE, "Right-side search finds its bilateral row");
+            search.setText("");
+            check(text(R.id.expression_freeze).equals("冻结"), "Compact Chinese freeze action");
+            click(R.id.expression_freeze);
+            check(text(R.id.expression_summary).contains("已冻结"), "Frozen state marked");
+            BridgeState.expressions = ExpressionStatus.empty(); monitorActivity.render();
+            check(text(R.id.expression_summary).contains("19 项有效"), "Freeze holds values");
+            BridgeState.nativeEye = NativeEyeStatus.empty(); monitorActivity.render();
+            click(R.id.expression_native);
+            check(text(R.id.expression_summary).contains("13/13"), "Freeze also retains native fields");
+            click(R.id.expression_eyes);
+            check(BridgeState.gaze.id.equals("0123456789abcdef"), "Inspector leaves gaze subscription unchanged");
+            click(R.id.expression_freeze);
+            check(text(R.id.expression_summary).contains("0 项有效"), "Resume reads current snapshot");
+        });
+        waitForIdleSync(); screenshot("ui-expressions.png");
+        runOnMainSync(() -> click(R.id.expression_back)); waitForIdleSync(); monitorActivity = null;
+        runOnMainSync(() -> {
+            check(activity.findViewById(R.id.page_diagnostics).getVisibility() == View.VISIBLE, "Return preserves diagnostics");
+            click(R.id.language_en);
+        });
+        openMonitor();
+        runOnMainSync(() -> {
+            check(text(R.id.expression_freeze).equals("Freeze"), "English inspector");
+            check(monitorActivity.findViewById(R.id.expression_eyes).isSelected(), "Reopening defaults to eye expressions in English");
+            click(R.id.expression_back);
+        });
+        waitForIdleSync(); monitorActivity = null;
     }
     @Override public void onStart() {
         SharedPreferences prefs = getTargetContext().getSharedPreferences("bridge", 0);
         Map<String, ?> saved = prefs.getAll(); Bundle result = new Bundle(); int resultCode = Activity.RESULT_CANCELED;
         GazeStatus previousGaze = BridgeState.gaze;
+        ExpressionStatus previousExpressions = BridgeState.expressions;
+        NativeEyeStatus previousNative = BridgeState.nativeEye;
+        OutputStatus previousOutputs = BridgeState.outputs;
+        boolean previousUdp = BridgeState.udp;
         long previousPackets = BridgeState.gazePackets;
         try {
-            prefs.edit().putBoolean("transmit_eye", true).putBoolean("transmit_face", true).putString("language", "en").commit();
+            prefs.edit().putBoolean("transmit_eye", true).putBoolean("transmit_face", true)
+                    .putString("language", "en").commit();
             activity = open();
             waitForIdleSync(); screenshot("ui-en.png");
             runOnMainSync(() -> {
@@ -113,12 +212,13 @@ public final class BridgeUiTest extends Instrumentation {
             waitForIdleSync(); screenshot("ui-diagnostics.png");
             runOnMainSync(() -> click(R.id.tab_gaze));
             waitForIdleSync(); screenshot("ui-gaze.png");
+            inspectorTest();
             result.putString("stream", "PASS: " + checks + " bilingual UI/persistence/selection checks\n");
             resultCode = Activity.RESULT_OK;
         } catch (Throwable failure) {
             result.putString("stream", "FAIL: " + failure + "\n");
         } finally {
-            // Only restore the three test-touched preferences; never clear grants or unrelated settings.
+            // Only restore test-touched preferences; never clear grants or unrelated settings.
             SharedPreferences.Editor edit = prefs.edit();
             for (String key : new String[]{"transmit_eye", "transmit_face", "language"}) {
                 Object value = saved.get(key);
@@ -128,6 +228,9 @@ public final class BridgeUiTest extends Instrumentation {
             }
             edit.commit();
             BridgeState.gaze = previousGaze; BridgeState.gazePackets = previousPackets;
+            BridgeState.expressions = previousExpressions; BridgeState.udp = previousUdp;
+            BridgeState.nativeEye = previousNative; BridgeState.outputs = previousOutputs;
+            if (monitorActivity != null) runOnMainSync(() -> monitorActivity.finish());
             if (activity != null) runOnMainSync(() -> activity.finish());
         }
         finish(resultCode, result);
