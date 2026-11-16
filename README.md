@@ -203,6 +203,16 @@ Issues and pull requests are welcome. Changes should keep the protocol compatibl
 
 CI runs host tests, translation checks, Android lint and APK builds. When a GitHub Release is published, CI uploads the debug-signed user APK, checksums and license notices automatically, with no custom Secrets required.
 
+## Community
+
+Join the Pico-Enhance community for help, discussion and release announcements.
+
+<a href="https://discord.gg/ueSEydeVD8"><img src="https://img.shields.io/badge/Discord-Join%20Pico--Enhance-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Pico-Enhance on Discord"></a>
+
+**QQ group:** 1129699813. Scan the code below with QQ to join.
+
+<img src="assets/community/qq-group-qr.png" alt="Pico-Enhance QQ group QR code" width="240">
+
 ## Acknowledgements
 
 Thanks to [thoricelli](https://github.com/thoricelli) for the original [PicoFacialDataDaemon](https://github.com/thoricelli/PicoFacialDataDaemon) and [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule).

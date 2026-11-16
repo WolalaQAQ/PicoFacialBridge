@@ -203,6 +203,16 @@ PICO 追踪服务 → Binder / 只读共享内存
 
 CI 会执行主机测试、翻译检查、Android lint 与 APK 构建。发布 GitHub Release 后，CI 会自动上传 debug 签名的用户 APK、校验和与许可声明，无需配置自定义 Secrets。
 
+## 社区
+
+使用求助、交流和版本更新通知，欢迎加入 Pico-Enhance 社区。
+
+<a href="https://discord.gg/ueSEydeVD8"><img src="https://img.shields.io/badge/Discord-Join%20Pico--Enhance-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="加入 Pico-Enhance Discord"></a>
+
+**QQ 群：** 1129699813，用 QQ 扫描下方二维码即可加入。
+
+<img src="assets/community/qq-group-qr.png" alt="Pico-Enhance QQ 群二维码" width="240">
+
 ## 致谢
 
 感谢 [thoricelli](https://github.com/thoricelli) 开发的 [PicoFacialDataDaemon](https://github.com/thoricelli/PicoFacialDataDaemon) 与 [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule)。
