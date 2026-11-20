@@ -36,6 +36,8 @@
     <string name="live">Live</string>
     <string name="no_data">No fresh data</string>
     <string name="disabled">Transmission off</string>
+    <string name="peer_unsubscribed_eye">Not subscribed by PC</string>
+    <string name="peer_unsubscribed_face">Not subscribed by PC (enhanced / external face active)</string>
     <string name="notification_channel">Tracking forwarding</string>
     <string name="notification_active">Eye / face forwarding service. Tap to view or stop.</string>
     <string name="ui_subtitle">HEADSET TRACKING BRIDGE</string>

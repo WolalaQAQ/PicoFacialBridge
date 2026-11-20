@@ -275,13 +275,17 @@ public final class BridgeActivity extends Activity {
         long nowNanos = SystemClock.elapsedRealtimeNanos(), nowMs = SystemClock.elapsedRealtime();
         int mask = BridgePreferences.selection(prefs);
         boolean sendEye = (mask & 1) != 0, sendFace = (mask & 2) != 0;
+        OutputStatus out = BridgeState.outputs;
+        boolean peerConnected = BridgeState.udp && !BridgeState.client.isEmpty() && out.subscribed;
+        boolean eyeUnsubscribed = sendEye && peerConnected && (out.requestedMask & 1) == 0;
+        boolean faceUnsubscribed = sendFace && peerConnected && (out.requestedMask & 2) == 0;
         double[] hz = BridgeState.rates.hz(nowNanos);
-        eyeRate.setText(s(R.string.ui_value_hz, sendEye && BridgeState.udp ? hz[0] : 0d));
-        faceRate.setText(s(R.string.ui_value_hz, sendFace && BridgeState.udp ? hz[1] : 0d));
-        eyeHealth.setText(s(!sendEye ? R.string.disabled : BridgeState.eye ? R.string.live : R.string.no_data));
-        faceHealth.setText(s(!sendFace ? R.string.disabled : BridgeState.face ? R.string.live : R.string.no_data));
-        eyeHealth.setTextColor(sendEye && BridgeState.eye ? ACCENT : MUTED);
-        faceHealth.setTextColor(sendFace && BridgeState.face ? BLUE : MUTED);
+        eyeRate.setText(s(R.string.ui_value_hz, sendEye && !eyeUnsubscribed && BridgeState.udp ? hz[0] : 0d));
+        faceRate.setText(s(R.string.ui_value_hz, sendFace && !faceUnsubscribed && BridgeState.udp ? hz[1] : 0d));
+        eyeHealth.setText(s(!sendEye ? R.string.disabled : eyeUnsubscribed ? R.string.peer_unsubscribed_eye : BridgeState.eye ? R.string.live : R.string.no_data));
+        faceHealth.setText(s(!sendFace ? R.string.disabled : faceUnsubscribed ? R.string.peer_unsubscribed_face : BridgeState.face ? R.string.live : R.string.no_data));
+        eyeHealth.setTextColor(sendEye && !eyeUnsubscribed && BridgeState.eye ? ACCENT : MUTED);
+        faceHealth.setTextColor(sendFace && !faceUnsubscribed && BridgeState.face ? BLUE : MUTED);
         status.setText(s(BridgeState.status)); serviceHint.setText(s(BridgeState.detail));
         statusDot.setTextColor(BridgeState.status == R.string.status_running ? ACCENT :
                 BridgeState.status == R.string.status_error ? RED : BridgeState.status == R.string.status_starting ? AMBER : MUTED);

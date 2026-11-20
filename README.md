@@ -115,13 +115,13 @@ On short landscape windows, the whole dashboard scrolls so the service controls 
 | Native sample | Distinguishes waiting, valid fresh gaze, invalid gaze and expired samples; source age is shown separately |
 | Eye transmission settings | Returns to the shared eye switch; disabling it affects avatar eyes and independent gaze together |
 | Diagnostics page | Capture mode, headset UDP address, native frame counts, ring history overruns, latest errors and expandable/copyable logs |
-| 0 Hz | No client, the channel is off, or there are no new samples; repeated samples and heartbeats are not counted |
+| 0 Hz | No client, the channel is off, PC did not subscribe to that channel, or there are no new samples; repeated samples and heartbeats are not counted |
 | Waiting for fresh tracking data | Put on and wake the headset, and check the system tracking settings and permissions |
 | English / 中文 | Switches the interface and notification language without affecting tracking |
 
 PICO's eye and face tracking share one algorithm, so both permissions are required even when only one channel is transmitted. The transmission switches only control whether data is sent; they do not control camera power.
 
-The channels actually sent are the intersection of the local transmission switches and the PC's subscription. When only eye data is transmitted, eye-region expressions such as blink, brows, EyeWide and EyeSquint are sent alongside the native eye data, and Face Hz shows 0. When only face data is transmitted, neither native eye data nor eye-region expressions are sent.
+The channels actually sent are the intersection of the local transmission switches and the PC's subscription. When only eye data is transmitted (for example when `PC Studio` enhanced mouth tracking or an external mouth tracker owns face output and the PC subscribes with `mask=1`), eye-region expressions such as blink, brows, EyeWide and EyeSquint are sent alongside the native eye data, and the Face card automatically shows `0.0 Hz` with **Not subscribed by PC (enhanced / external face active)** without needing to turn off **Transmit face tracking** in Bridge. When only face data is transmitted, neither native eye data nor eye-region expressions are sent.
 
 The inspector shows Bridge-side values, not final PC-module or avatar output. The native-eye tab shows both raw wire pupil values and millimeters (raw ÷ 10), 0–1 openness, and signed XYZ direction components; expression bars retain their 0–1 scale. Numbers are not clamped to the display scale, and out-of-scale values are amber. Invalid, expired, mode-filtered, uncaptured and disabled readings have separate states rather than estimated pupils or fabricated zeroes.
 

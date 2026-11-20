@@ -36,6 +36,8 @@
     <string name="live">实时</string>
     <string name="no_data">暂无新鲜数据</string>
     <string name="disabled">传输已关闭</string>
+    <string name="peer_unsubscribed_eye">PC 未订阅</string>
+    <string name="peer_unsubscribed_face">PC 未订阅（增强／外部面捕使用中）</string>
     <string name="notification_channel">追踪转发</string>
     <string name="notification_active">眼追／面捕转发服务，点击查看或停止。</string>
     <string name="ui_subtitle">头显追踪 · 独立转发</string>

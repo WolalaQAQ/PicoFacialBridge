@@ -2,6 +2,17 @@
 
 English | [简体中文](CHANGELOG_zh.md)
 
+## [Unreleased]
+
+### Features
+- Show explicit **Not subscribed by PC (enhanced / external face active)** (and **Not subscribed by PC** for eye) status with `0.0 Hz` on the dashboard card when a subscribed PC client leaves that locally enabled channel unsubscribed (`(out.requestedMask & channelBit) == 0`).
+
+### Design Rationale
+- Let users keep Bridge's eye and face switches enabled once while PC-side `UnifiedPicoModule` automatically adjusts `PXR_SUB` masks when enhanced `PC Studio` mouth tracking or an external mouth module is active, making the active path immediately clear without adding root/camera controls to Bridge.
+
+### Notes & Caveats
+- Wire protocol (`BridgeSplit` / `PXR_SUB`) and rootless headset permissions remain unchanged.
+
 ## [0.7.0] - 2026-11-17
 
 ### Features

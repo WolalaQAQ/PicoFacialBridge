@@ -163,6 +163,11 @@ class DashboardSourceTest(unittest.TestCase):
             self.assertEqual(re.findall(r'%\d+\$[\d.]*[sdf]', resources[0][name]),
                              re.findall(r'%\d+\$[\d.]*[sdf]', resources[1][name]))
 
+    def test_unsubscribed_peer_channel_state_is_rendered(self):
+        self.assertIn('R.string.peer_unsubscribed_eye', self.activity)
+        self.assertIn('R.string.peer_unsubscribed_face', self.activity)
+        self.assertIn('out.requestedMask', self.activity)
+
 
 if __name__ == '__main__':
     unittest.main()
