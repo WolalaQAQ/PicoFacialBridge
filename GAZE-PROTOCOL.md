@@ -1,62 +1,115 @@
-# Independent native-gaze subscription
+# Standalone Native-Gaze Subscription Protocol
 
-Bridge 0.6.0 and later let a PC gaze consumer read PicoFacialBridge directly while an existing BridgeSplit avatar client remains connected. This protocol does not require VRCFaceTracking or UnifiedPicoModule. Bridge 0.5.0 APKs do not implement these commands.
+**English** | [简体中文](GAZE-PROTOCOL_zh.md) · [README](README.md)
 
-## Transport and ownership
+This document specifies the direct UDP subscription protocol that lets a PC gaze consumer read native eye-gaze samples from PicoFacialBridge without VRCFaceTracking, `UnifiedPicoModule`, or a PC-side relay.
 
-The headset listens on its existing UDP9030 socket. A gaze client binds its own PC UDP port, normally an ephemeral port, and sends the commands below directly to the headset address. Replies and samples return to that exact IP/port from the headset's UDP9030. Do not bind the avatar module's PC9030 port.
+---
 
-Bridge supports one avatar client and one independent gaze client at the same time. Their subscription IDs, epochs, stop commands and timeouts are separate. A second gaze endpoint cannot replace an active gaze subscriber until that lease expires. The local **Transmit eye tracking** switch controls both paths; it is not overridden by a remote client.
+## Transport & Coexistence
 
-This is a trusted-LAN protocol, with no encryption or cryptographic authentication. A subscription ID distinguishes sessions but is not an authentication token.
+- **Headset endpoint:** Reuses PicoFacialBridge's existing **UDP 9030** socket on `wlan0`.
+- **Client endpoint:** The gaze client binds its own PC UDP port (typically an ephemeral port) and sends commands directly to `<headset-ipv4>:9030`. Acknowledgements and data packets return to that exact client IP and port. Do not bind PC port `9030` (used by `UnifiedPicoModule`).
+- **Coexistence with BridgeSplit:** PicoFacialBridge serves one BridgeSplit avatar client and one standalone gaze client concurrently. Their subscription IDs, epochs, stop commands, and timeouts are completely separate.
+- **Single gaze owner:** A second gaze endpoint cannot take over an active gaze subscription until the current lease expires or the active owner unsubscribes.
+- **Shared local eye switch:** The headset's local **Transmit eye tracking** switch gates both avatar eye output and standalone gaze output. Remote clients cannot override it.
+- **Security boundary:** Trusted-LAN protocol with no encryption or cryptographic authentication. Subscription IDs distinguish sessions but are not authentication tokens.
 
-## Commands
+---
 
-Control messages are ASCII with no trailing newline or null byte. The ID is exactly 16 lowercase hexadecimal digits, generated randomly by the client.
+## Control Commands
+
+All control messages use pure ASCII with **no trailing newline and no NUL byte**. Every `id` is exactly 16 lowercase hexadecimal characters (`[0-9a-f]{16}`), generated randomly by the client.
+
+| Command | Direction | Wire Format | Meaning |
+|---|---|---|---|
+| **Subscribe / Renew** | PC → Headset | `PXR_GAZE_SUB id=<16-hex>` | Starts a gaze session or renews an active lease. |
+| **Acknowledge** | Headset → PC | `PXR_GAZE_ACK id=<16-hex> epoch=<16-hex> enabled=<0\|1>` | Confirms active subscription, current epoch, and local eye-switch state. |
+| **Unsubscribe** | PC → Headset | `PXR_GAZE_STOP id=<16-hex>` | Ends the gaze session immediately without affecting any avatar client. |
+
+### Example Exchange
 
 ```text
-PC → headset: PXR_GAZE_SUB id=0123456789abcdef
-headset → PC: PXR_GAZE_ACK id=0123456789abcdef epoch=000000003b9aca00 enabled=1
-PC → headset: PXR_GAZE_STOP id=0123456789abcdef
+PC      -> Headset : PXR_GAZE_SUB id=0123456789abcdef
+Headset -> PC      : PXR_GAZE_ACK id=0123456789abcdef epoch=000000003b9aca00 enabled=1
+PC      -> Headset : PXR_GAZE_STOP id=0123456789abcdef
 ```
 
-Send `PXR_GAZE_SUB` once per 1000 ms to renew the 3000 ms lease. Repeating the same endpoint/ID is idempotent: it renews the lease and returns an ACK without resetting the source watermark or epoch. A new ID on the same endpoint starts a new gaze session; another endpoint's SUB or STOP does not change the current subscription.
+---
 
-The ACK's epoch is a positive signed int64 represented as exactly 16 lowercase hexadecimal digits. `enabled=0` means the headset's local eye-transmission switch is off; the subscription can keep renewing, but no native samples are sent. A local eye-switch change or tracking-session restart advances the gaze epoch and sends a new ACK before new-epoch data. These changes do not replace the avatar session's ID or epoch.
+## Lease Lifecycle & Error Handling
 
-A client must match the ACK ID and headset source endpoint before accepting data. It must reject samples for other epochs and stop forwarding if no valid ACK has arrived for 3000 ms. An old ACK must not roll back an active epoch. On timeout, rotate the subscription ID once and immediately re-subscribe; reject delayed ACKs for the old ID. The new ID's ACK can then establish a lower epoch after a headset reboot without resurrecting an old session. Duplicate ACKs renew only control freshness, not sample freshness.
+### Renewal & Idempotency
+- Send `PXR_GAZE_SUB` every **1000 ms** to renew the **3000 ms** headset-side lease.
+- Repeating `PXR_GAZE_SUB` from the same endpoint with the same `id` is idempotent: it extends the lease and replies with `PXR_GAZE_ACK` without resetting the epoch or source timestamp watermark.
+- Sending `PXR_GAZE_SUB` from the same endpoint with a **new** `id` starts a new gaze session and advances the epoch.
+- `PXR_GAZE_SUB` or `PXR_GAZE_STOP` from a different endpoint while a lease is active is ignored.
 
-On exit, send only `PXR_GAZE_STOP` with the owned ID. Do not send the avatar protocol's `STOP`, `DISCOVER_DAEMON`, `PXR_SUB`, `POLO` or other control messages for a gaze subscription. Stopping the gaze consumer leaves the avatar client connected, and an avatar STOP leaves gaze connected.
+### Epochs & Local Switch Changes
+- `epoch` is a positive signed 64-bit integer formatted as 16 lowercase hexadecimal digits.
+- `enabled=0` indicates that the headset's **Transmit eye tracking** switch is off. The client may continue renewing the lease, but no `E` samples are sent until the switch is turned back on.
+- Toggling the local eye switch, switching tracking mode, or restarting the underlying tracking session advances the gaze `epoch` and sends a fresh `PXR_GAZE_ACK` before any samples for the new epoch are transmitted. None of these events alter the BridgeSplit avatar session's ID or epoch.
 
-## Samples
+### Client Validation & Recovery Rules
+1. Verify that every incoming `PXR_GAZE_ACK` and `E` packet comes from the expected headset endpoint and matches the active `id` / `epoch`.
+2. Never allow an older ACK to roll back an active `epoch`.
+3. Treat duplicate ACKs as renewing control freshness only, never sample freshness.
+4. If no valid `PXR_GAZE_ACK` arrives for **3000 ms**, stop forwarding gaze immediately, rotate to a brand-new random 16-hex `id`, re-subscribe, and ignore delayed ACKs carrying the old `id`. Rotating the ID allows a lower epoch to be established cleanly after a headset reboot without resurrecting a stale session.
+5. On clean exit, send only `PXR_GAZE_STOP id=<active-id>`. Never send BridgeSplit commands (`DISCOVER_DAEMON`, `PXR_SUB`, `POLO`, or `STOP`) from a gaze client.
 
-Data uses the existing 83-byte native `E` layout, little-endian throughout:
+### Headset Send Failures
+If sending an ACK or `E` packet throws a socket I/O error on the headset, PicoFacialBridge clears the gaze subscription immediately and records the failure in the **Gaze** tab without affecting the avatar client.
 
-| Offset | Bytes | Field |
-|---:|---:|---|
-| 0 | 1 | ASCII `E` |
-| 1 | 1 | Channel mask, always 1 |
-| 2 | 1 | Morphology flags, always 0 |
-| 3 | 8 | Gaze subscription epoch |
-| 11 | 8 | Native eye source timestamp in headset monotonic nanoseconds |
-| 19 / 23 / 27 | 4 each | Left, right and combined native status words |
-| 31 / 43 / 55 | 12 each | Left, right and combined float32 direction vectors |
-| 67 / 71 | 4 each | Left/right openness |
-| 75 / 79 | 4 each | Left/right raw pupil values |
+---
 
-Combined direction validity comes from bit `0x002` of the status word at offset 27, not the morphology byte. The gaze path clears per-eye `0x100` validity rather than claiming that firmware's fixed-depth split represents two independent measured rays. The consumer should use the valid combined direction for its initial integration. All native fields use the same sanitization as ordinary `E` packets.
+## Sample Wire Format (`E` Packet)
 
-Native gaze uses head-relative right/up/back axes, with forward along negative Z. It is a direction, not a screen coordinate or a fixation distance. A rendering adapter must apply the connected headset's eye transforms/projections and must not apply world/head compensation a second time. The packet does not provide a reliable convergence distance.
+Samples use the 83-byte little-endian native `E` datagram:
 
-Only the newest available source from each poll is sent, and only if its timestamp advances and its age is at most 150 ms in the headset clock domain. Old ring history is not replayed into a fresh gaze session. A new invalid native observation is still sent, so consumers can stop using the previous direction. No smoothing, interpolation, face expressions or `A/F/X` packets are added to this path. The avatar path retains its existing independent stream cadence and packet format.
+| Offset | Size (bytes) | Type | Field |
+|---:|---:|---|---|
+| `0` | 1 | `uint8` | Tag: ASCII `'E'` (`0x45`) |
+| `1` | 1 | `uint8` | Channel mask: always `1` |
+| `2` | 1 | `uint8` | Morphology flags: always `0` |
+| `3` | 8 | `int64` | Gaze subscription `epoch` |
+| `11` | 8 | `int64` | Native eye source timestamp (headset monotonic nanoseconds) |
+| `19` | 4 | `uint32` | Left eye native status word |
+| `23` | 4 | `uint32` | Right eye native status word |
+| `27` | 4 | `uint32` | Combined native status word |
+| `31` | 12 | `float32[3]` | Left eye direction vector `(x, y, z)` |
+| `43` | 12 | `float32[3]` | Right eye direction vector `(x, y, z)` |
+| `55` | 12 | `float32[3]` | Combined direction vector `(x, y, z)` |
+| `67` | 4 | `float32` | Left eye openness (`0..1`) |
+| `71` | 4 | `float32` | Right eye openness (`0..1`) |
+| `75` | 4 | `float32` | Left raw pupil value (`mm = raw / 10`) |
+| `79` | 4 | `float32` | Right raw pupil value (`mm = raw / 10`) |
 
-Headset timestamps must not be passed directly as Windows QPC ticks. The VRSS adapter keeps the source identity for deduplication and uses the PC clock for its provider input. Network delivery and a running client alone do not prove a correctly aligned rendered foveated region.
+### Validity, Coordinates & Freshness Rules
 
-## Implementation and host checks
+- **Combined gaze validity:** Check bit `0x002` in the combined status word at offset `27` (not the morphology byte at offset `2`). The standalone gaze path strips per-eye gaze validity bits (`0x080` and `0x100`) so consumers use the measured combined direction rather than firmware's fixed-depth split. Non-finite source floats are sanitized to `0.0f` with their corresponding status bits cleared.
+- **Coordinate system:** Head-relative right / up / back (`+X` right, `+Y` up, `+Z` back, forward along `-Z`). It is a unit-style direction vector, not a screen coordinate or convergence distance; rendering adapters must apply the headset's eye transforms/projections and avoid double-applying head pose compensation.
+- **Latest-only freshness:** On each poll, PicoFacialBridge forwards only the newest eye observation whose timestamp strictly advances past the previous sent timestamp and whose age is **≤ 150 ms** (`150_000_000 ns`) in the headset's monotonic clock domain. Historical ring-buffer frames are never replayed into a new gaze session.
+- **Invalidation forwarding:** A fresh observation whose combined gaze is invalid is still sent so the consumer can immediately stop holding the previous direction.
+- **No extra streams:** Standalone gaze applies no smoothing or interpolation and never emits `A`, `F`, or `X` expression packets.
+- **Clock domains:** Do not pass the headset monotonic timestamp (offset `11`) directly as a Windows QPC timestamp. Use it for source deduplication and ordering, and stamp consumer APIs with the local PC clock.
 
-- `GazeSubscription.java`: independent lease, epoch and latest-native-sample selection.
-- `BridgeService.java`: namespace dispatch and combined capture demand, with separate diagnostics.
-- `tests/GazeSubscriptionTest.java`: lease, switch, invalidation, freshness and original-peer isolation checks.
-- `tests/GazeLoopbackServer.java`: synthetic host fixture using the actual protocol and framing classes; it binds a system-assigned loopback port and never accesses a headset.
+---
 
-Run `bash tests/run-host-tests.sh` or the focused Windows `tests/run-gaze.ps1`. Android compilation and host tests do not establish device or VRSS rendering acceptance.
+## Reference Implementation & Host Tests
+
+| File | Responsibility |
+|---|---|
+| `bridge/src/main/java/dev/pico/facialprobe/GazeSubscription.java` | Independent lease, epoch state machine, and latest-sample selection |
+| `bridge/src/main/java/dev/pico/facialprobe/BridgeService.java` | Namespace dispatch on UDP 9030, combined capture demand, and isolated gaze diagnostics |
+| `tests/GazeSubscriptionTest.java` | Lease, local eye-switch, invalidation, freshness, and BridgeSplit peer-isolation tests |
+| `tests/GazeLoopbackServer.java` | Synthetic host fixture using the real protocol/framing classes over a loopback port |
+
+Run the full host suite or the focused gaze tests:
+
+```sh
+# Linux / macOS / Git Bash
+bash tests/run-host-tests.sh
+
+# Windows PowerShell
+pwsh -File tests/run-gaze.ps1
+```

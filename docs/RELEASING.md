@@ -1,50 +1,96 @@
-# Publishing an APK
+# Releasing PicoFacialBridge
 
-English | [简体中文](RELEASING_zh.md) · [README](../README.md)
+**English** | [简体中文](RELEASING_zh.md) · [README](../README.md)
 
-**No keystore setup or custom GitHub Secrets are required.** This project distributes sideload APKs, not Google Play builds. Gradle's `assembleDebug` compiles and signs an installable APK automatically.
+PicoFacialBridge distributes sideload APKs via GitHub Releases rather than Google Play. **No keystore setup or custom GitHub Secrets are required:** Gradle's `assembleDebug` builds and signs an installable APK automatically, and release uploads use GitHub's built-in `GITHUB_TOKEN`.
 
-## Publish to GitHub Releases
+---
 
-1. Commit and push the source and [workflow](../.github/workflows/android.yml). For a new app version, update `versionName` and increment `versionCode` in `bridge/build.gradle`, and add a `## [<version>]` section to both `CHANGELOG.md` and `CHANGELOG_zh.md`.
-2. Push a tag on that commit. The tag must match `v` + `versionName`, for example **`v0.7.0`** for the current version:
+## Pre-Release Checklist
 
-   ```powershell
-    git tag -a v0.7.0 -m "PicoFacialBridge v0.7.0"
-    git push origin v0.7.0
-   ```
+Before tagging a release:
 
-    A tag with a suffix such as `v0.7.0-rc.1` is published as a pre-release; use one when the build still needs real-headset acceptance.
-3. Wait for **Android CI and Release** to finish. It creates the release, titled `PicoFacialBridge v0.7.0`, with the English and Chinese changelog sections as its notes. Download from the release's **Assets**:
+1. Update `versionName` and increment `versionCode` in `bridge/build.gradle`.
+2. Add a matching `## [<version>]` section to both `CHANGELOG.md` and `CHANGELOG_zh.md`.
+3. Commit and push all changes, including [`.github/workflows/android.yml`](../.github/workflows/android.yml).
 
-   ```text
-    PicoFacialBridge-v0.7.0-arm64-v8a-debug.apk
-   SHA256SUMS.txt
-   LICENSE
-   THIRD_PARTY_NOTICES.md
-   ```
+> [!IMPORTANT]
+> The release tag must equal `v` + `versionName` (for example `v0.7.0`), and both `CHANGELOG.md` and `CHANGELOG_zh.md` must contain a non-empty `## [<version>]` section. If either check fails, the workflow aborts before creating a release.
 
-The workflow runs host tests, dashboard source checks, translation checks and Android lint, builds the APK, verifies its automatic signature, and only then creates and publishes the release with the files attached. The filename identifies it as a **debug build**: it is debuggable but can be installed and used normally. No manual signing or Play Console account is involved. If the tag does not match `versionName`, or a changelog has no section for the version, the run fails before anything is published.
+---
 
-Uploads use GitHub's built-in `GITHUB_TOKEN`; repository/organization policy must allow Actions and the publish job's `contents: write` permission. The tagged source must include this workflow.
+## Tag & Publish
 
-If you need to retry, rerun the failed job or use **Actions → Android CI and Release → Run workflow**, entering the existing tag. Manual publishing builds that tag, not the selected branch. If the release already exists, it replaces same-named assets and leaves the notes as they are; otherwise it creates the release. An empty tag runs CI only. Manual dispatch must be available on the default branch.
-
-A rerun for an existing release adds assets after publication, so that release must remain mutable. It cannot append files to an immutable/locked release.
-
-## Updating the app
-
-Each CI build may generate a different debug key. If Android refuses an in-place update because signatures differ, verify the APK's source, uninstall the previous app and install the new one. **Uninstalling resets app preferences.** Do not commit private signing keys to solve this; persistent signing can be added later if seamless upgrades become a requirement.
-
-## Local build
-
-With the SDK and JDK configured as described in the [README](../README.md#building-from-source):
+Push an annotated tag pointing at the release commit:
 
 ```powershell
+git tag -a v0.7.0 -m "PicoFacialBridge v0.7.0"
+git push origin v0.7.0
+```
+
+- Standard tags (`v0.7.0`) publish as a full GitHub Release.
+- Tags with a hyphenated suffix (`v0.7.0-rc.1`) publish automatically as a **Pre-release**.
+
+### What CI Verifies Before Publishing
+
+The **Android CI and Release** workflow (`.github/workflows/android.yml`) runs two sequential jobs:
+
+1. **`build` (`ubuntu-24.04`, JDK 17, Android SDK 35 / build-tools 35.0.0 / NDK 26.1.10909125 / CMake 3.22.1):**
+   - Runs `bash tests/run-host-tests.sh`
+   - Runs static contract checks (`test_ui_dashboard.py`, `test_inspector_frames.py`, `test_rootless_boundary.py`)
+   - Runs `tests/check-translations.ps1`
+   - Runs `./gradlew :bridge:assembleDebug :bridge:assembleDebugAndroidTest :bridge:lintDebug`
+   - Runs `tests/test_apk_distribution.py`, `apksigner verify`, `zipalign -c 4`, and `aapt dump badging` to confirm the APK's `versionName` matches the release tag
+2. **`publish` (`contents: write` via `GITHUB_TOKEN`):**
+   - Extracts the matching English and Chinese sections from `CHANGELOG.md` and `CHANGELOG_zh.md` into the release notes
+   - Generates `SHA256SUMS.txt` and creates the release as a draft, uploads all assets, then marks it published
+
+### Published Release Assets
+
+| Asset | Description |
+|---|---|
+| `PicoFacialBridge-v<version>-arm64-v8a-debug.apk` | Debug-signed sideload APK for PICO 4 Pro (`arm64-v8a`) |
+| `SHA256SUMS.txt` | SHA-256 checksums for the APK and notice files |
+| `LICENSE` | MIT License |
+| `THIRD_PARTY_NOTICES.md` | Retained upstream copyright notice |
+
+Branch pushes and pull requests also upload two Actions artifacts (14-day retention): `android-build` (containing `PicoFacialBridge-debug.apk`, `PicoFacialBridge-debug-androidTest.apk`, `LICENSE`, and `THIRD_PARTY_NOTICES.md`) and `android-lint`. The `androidTest` APK is for developer instrumentation tests, not end users.
+
+---
+
+## Retrying or Running Manually
+
+To retry a failed publish or refresh assets for an existing tag:
+
+1. Open **Actions → Android CI and Release → Run workflow** (workflow must exist on the default branch).
+2. Enter the existing tag (for example `v0.7.0`) in the `tag` input. Leaving `tag` blank runs CI only without publishing.
+
+Manual dispatch always checks out and builds the specified tag rather than the selected branch. If the GitHub Release already exists, the workflow replaces same-named assets (`--clobber`) and keeps the existing release notes, so the release must remain mutable (not locked or immutable).
+
+Repository or organization settings must permit Actions and grant the `publish` job `contents: write`.
+
+---
+
+## Debug Signing & App Updates
+
+Each CI runner generates an ephemeral debug signing key, so Android may reject an in-place upgrade when signatures differ between releases. Users should verify the APK source, uninstall the older version, and install the new one (uninstalling clears saved preferences). Do not commit private keystores to the repository.
+
+---
+
+## Local Build
+
+With JDK 17 and the pinned Android SDK components configured as described in [README.md](../README.md#building-from-source):
+
+```powershell
+# Windows PowerShell
 .\gradlew.bat :bridge:assembleDebug
 adb install -r .\bridge\build\outputs\apk\debug\bridge-debug.apk
 ```
 
-Linux/macOS: `bash ./gradlew :bridge:assembleDebug`. The APK is automatically signed in both cases. There is no need to use `assembleRelease` or `keytool` for this distribution flow.
+```sh
+# Linux / macOS
+bash ./gradlew :bridge:assembleDebug
+adb install -r bridge/build/outputs/apk/debug/bridge-debug.apk
+```
 
-Branch pushes and pull requests also produce an `android-build` Actions artifact (14-day retention) containing the user debug APK, instrumentation test APK and notices. The instrumentation APK is for developer tests, not the user app. Lint reports are separate. CI does not replace real headset testing.
+Gradle automatically signs the local debug APK; `assembleRelease` and `keytool` are not needed.

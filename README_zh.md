@@ -1,216 +1,254 @@
+<div align="center">
+
 # PicoFacialBridge
 
-[English](README.md) | 简体中文
+免 Root 的 PICO 4 Pro 局域网眼动与面部追踪桥接应用，无需 Magisk 或 PICO Connect，可与 Virtual Desktop 同时运行。
 
 [![Android CI](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml/badge.svg)](https://github.com/WolalaQAQ/PicoFacialBridge/actions/workflows/android.yml)
+[![Release](https://img.shields.io/github/v/release/WolalaQAQ/PicoFacialBridge)](https://github.com/WolalaQAQ/PicoFacialBridge/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-PicoFacialBridge 是运行在 PICO 4 Pro 上的 Android 应用，用于将头显的眼动与面部追踪数据通过局域网转发至 PC，再由 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) 接入 VRCFaceTracking（VRCFT）。
+[English](README.md) | **简体中文**
 
-本应用无需 Root、Magisk、Shizuku 或 PICO Connect，也不占用 OpenXR 会话，可以与 Virtual Desktop 等串流软件同时使用。ADB 仅在安装和调试时可选使用，日常使用不需要。
+[快速上手](#快速上手) · [增强模式](#可选增强模式) · [界面说明](#界面说明) · [独立原生视线](#独立原生视线) · [故障排查](#故障排查) · [开发说明](#开发说明) · [社区](#社区)
 
-**[下载 APK](https://github.com/WolalaQAQ/PicoFacialBridge/releases) · [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) · [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) · [反馈问题](https://github.com/WolalaQAQ/PicoFacialBridge/issues)**
+</div>
 
-> Avatar 眼面捕使用 BridgeSplit 协议，PC 端须运行 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。旧版 PicoFacialDataModule 及其分支无法接收该格式；仍需旧协议时，可使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。下文的独立原生视线订阅需要 Bridge 0.6.0 或更高版本，0.5.0 APK 不包含它。
+---
 
-## 功能
+## 为什么使用 PicoFacialBridge
 
-- 在头显内启动或停止追踪；通过前台服务与常驻通知，在应用窗口关闭后继续转发。
-- 眼动与面部数据按各自的源频率独立发送，不做平滑或插值。
-- 眼动与面部传输可分别开关，界面显示各通道的实际发送频率。
-- 只发送 PC 端订阅的通道，订阅确认前不发送任何追踪数据。
-- 原生视线客户端可以直接订阅，并与 Avatar 眼面捕客户端同时使用，不需要 VRCFT 或 PC 中继。
-- 自动检测追踪模式（普通或增强）并在应用内显示。
-- 界面支持中文与英文，语言与传输设置会被保存。
+PicoFacialBridge 是运行在 PICO 4 Pro 上的独立 Android 应用，负责读取头显的眼动与面部追踪数据，并通过局域网转发给 Windows PC。
 
-## 增强模式
+- **完全免 Root：** 不需要 Root、Magisk、Shizuku 或 PICO Connect。ADB 仅在安装或调试时可选使用，日常使用不需要连接电脑。
+- **与串流软件共存：** 不占用 OpenXR 会话，可与 Virtual Desktop 同时运行；启动后通过前台服务与常驻通知在后台持续转发，可直接关闭应用窗口。
+- **按源频率拆分发送：** 眼动与面部通道各自按原始采样节奏独立发送，不做平滑或插值，且只传输 PC 端实际订阅的通道。
+- **支持双路消费者：** 可同时向 VRCFaceTracking（经由 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)）和独立的原生视线客户端提供数据。
 
-头显上启用 [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) Magisk 模块后，Bridge 会自动识别增强模式，并向 PC 转发真实瞳孔直径和逐眼独立表情。配套开发模块附带独立的头显后处理面板，Bridge始终免Root；参数、安装及配套要求见PicoET-Enhance的README。
+```mermaid
+flowchart LR
+    subgraph Headset["PICO 4 Pro 头显"]
+        PICO["PICO 追踪服务"] -->|"Binder / 只读共享内存"| Bridge["PicoFacialBridge"]
+        Enhance["PicoET-Enhance（可选）"] -.->|"增强模式"| Bridge
+    end
 
-## 兼容性
+    subgraph PC["Windows PC（局域网）"]
+        Module["UnifiedPicoModule"] --> VRCFT["VRCFaceTracking"]
+        VRCFT -->|"OSC"| VRChat["VRChat"]
+        Gaze["独立原生视线客户端"]
+    end
+
+    Bridge -->|"UDP 9030 · BridgeSplit"| Module
+    Bridge -->|"UDP 9030 · 独立视线"| Gaze
+```
+
+> [!IMPORTANT]
+> Avatar 眼面捕使用 **BridgeSplit** 协议，PC 端需要安装 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。旧版 `PicoFacialDataModule` 及其分支无法接收该格式；如果仍需旧协议，请使用 [v0.2.0](https://github.com/WolalaQAQ/PicoFacialBridge/releases/tag/v0.2.0)。
+
+---
+
+## 兼容性与环境要求
+
+已在 **PICO 4 Pro**、**PICO OS 5.13.7**（Android 10 / API 29，`arm64-v8a`）免 Root 环境下验证。
 
 | 项目 | 要求 |
 |---|---|
-| 头显 | 眼动与面部追踪功能正常的 PICO 4 Pro |
-| 已验证固件 | PICO OS 5.13.7（Android 10 / API 29，arm64-v8a） |
-| PC | Avatar眼面捕：Windows、VRCFaceTracking 5.4.5 与 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)。原生视线：实现[独立视线订阅协议](GAZE-PROTOCOL.md)的客户端 |
-| 网络 | PC 与头显位于同一可信局域网，UDP 9030 端口可达 |
-| VRChat | 已配置面部追踪的 Avatar，并启用 OSC |
+| **头显** | 具备正常眼动与面部追踪硬件的 PICO 4 Pro |
+| **固件版本** | PICO OS 5.13.7（依赖 PICO 内部追踪服务与共享内存布局） |
+| **PC（Avatar 眼面捕）** | Windows 系统、VRCFaceTracking 与 [UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule) |
+| **PC（独立原生视线）** | 实现[独立视线订阅协议](GAZE-PROTOCOL_zh.md)的客户端 |
+| **网络** | 头显与 PC 处于同一可信局域网，**UDP 9030** 端口可达 |
+| **VRChat** | 已配置面部追踪的 Avatar，并开启 OSC |
 
-本应用依赖 PICO 内部追踪服务与共享内存布局，系统更新可能影响其可用性。其他型号与固件版本尚未确认兼容。本应用无法为不具备追踪硬件的设备提供眼动或面部追踪。
+---
 
-截至 2026-10-02，以下内容已在 PICO 4 Pro 上完成验证：
+## 快速上手
 
-- 与 UnifiedPicoModule 之间的通道订阅与确认；
-- 眼动与面部开关的四种组合，以及切换时清理缓存；
-- 两路均关闭时暂停采集；
-- 数据中断后 PC 端恢复中性；
-- 应用重启后自动恢复：头显界面约 6 秒回到运行状态，PC 端约 33 秒内重新订阅；
-- 增强模式下 Avatar 的表情跟随；
-- 与 Virtual Desktop 同时运行。
+### 1. 在头显上安装 APK
 
-头显完整重启后，启动 Bridge 并让 PC 重新连接，眼动与面部数据恢复到达。尚未验证的内容包括长时间实机相机使用，以及普通模式下的 Avatar 表现。
-
-## 安装与使用
-
-### 1. 安装头显应用
-
-1. 从 [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases) 下载 `PicoFacialBridge-v<版本>-arm64-v8a-debug.apk`。Release 页面上的源码 ZIP 不是安装包。
-2. 使用常用的头显 APK 安装工具侧载。也可以在头显上启用开发者模式与 USB 调试，连接并授权后，使用 [Android platform-tools](https://developer.android.com/tools/releases/platform-tools) 安装：
+1. 从 [Releases](https://github.com/WolalaQAQ/PicoFacialBridge/releases) 下载 `PicoFacialBridge-v<版本>-arm64-v8a-debug.apk`（例如 `PicoFacialBridge-v0.7.0-arm64-v8a-debug.apk`）。Release 页面附带的源码 ZIP 不是安装包。
+2. 使用头显内的文件管理器或常用侧载工具安装。如果习惯使用 ADB，开启开发者模式与 USB 调试后连接头显并执行：
 
    ```sh
-    adb install -r PicoFacialBridge-v0.7.0-arm64-v8a-debug.apk
+   adb install -r PicoFacialBridge-v0.7.0-arm64-v8a-debug.apk
    ```
 
-3. 在头显的 2D 应用列表中打开 PicoFacialBridge。确认系统设置中已启用眼动与面部追踪，点击启动，并授予应用请求的两项追踪权限。
+3. 在头显的 2D 应用列表中打开 **PicoFacialBridge**。确认系统设置里已开启眼动与面部追踪，点击**启动**，并授予应用请求的两项追踪权限。
 
-发布的 APK 使用自动生成的 debug 签名，不同构建之间的签名可能不同，因此 Android 可能拒绝覆盖安装。遇到这种情况时，请确认 APK 来源后卸载旧版再安装新版。卸载会清除应用设置。
+> [!NOTE]
+> 发布的 APK 使用自动生成的 debug 签名，不同构建之间的签名可能不同。如果 Android 因签名不一致拒绝覆盖安装，请确认下载来源后先卸载旧版，再安装新版。卸载会重置应用内的偏好设置。
 
-### 2. 安装 UnifiedPicoModule
+### 2. 在 PC 上安装 UnifiedPicoModule
 
-按照 [UnifiedPicoModule 的安装说明](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/README_zh.md#安装)在 VRCFT 中安装模块。安装前请停用其他 PICO 模块，避免端口冲突。
+1. 按照 [UnifiedPicoModule 说明文档](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/README_zh.md) 在 VRCFaceTracking 中安装模块。安装前请停用其他 PICO 模块，避免 UDP 9030 端口冲突。
+2. 模块默认通过局域网多播（`239.255.255.250`）自动发现头显。如果自动发现失败，或同一局域网内有多台头显，请在 `UnifiedPicoModule.json` 中填写头显的 IPv4 地址（可在应用**诊断**页查看），保存后重启 VRCFT：
 
-模块默认通过局域网多播自动发现头显。自动发现失败，或局域网内有多台头显时，可以在模块配置文件 `UnifiedPicoModule.json` 中指定头显地址：
+   ```json
+   "Bridge": { "IP": "192.168.1.123" }
+   ```
 
-```json
-"Bridge": { "IP": "192.168.1.123" }
-```
+   配置文件位置与其余参数请参阅 [UnifiedPicoModule 配置说明](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/docs/configuration_zh.md)。
 
-请将示例地址替换为 PicoFacialBridge 界面上显示的头显 IPv4 地址，修改后重启 VRCFT。头显重新连接 Wi-Fi 后，地址可能发生变化。配置文件的位置与其他字段请参阅 UnifiedPicoModule 的[配置说明](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/docs/configuration_zh.md)。
+### 3. 日常使用流程
 
-### 3. 日常使用
+1. 佩戴头显，打开 **PicoFacialBridge** 并点击**启动**。状态变为**运行中**后即可关闭应用窗口。
+2. 在 PC 上启动 **VRCFaceTracking**。连接成功后，PicoFacialBridge 会显示客户端地址与非零发送频率，VRCFT 的 Output 页面会显示 `Bridge/BridgeSplit: state=Connected`。
+3. 启动 Virtual Desktop 与 VRChat，并确认 OSC 已开启。
+4. 结束使用时，在应用内或下拉系统常驻通知点击**停止**。
 
-1. 在头显上打开 PicoFacialBridge 并点击启动。
-2. 在 PC 上启动 VRCFT。连接成功后，PicoFacialBridge 会显示已连接的客户端与非零的发送频率；VRCFT 的 Output 页面会显示 `Bridge/BridgeSplit: state=Connected`。
-3. 启动 VRChat 并开启 OSC。
-4. 结束使用时，在应用或常驻通知中点击停止。
+---
 
-### 独立原生视线
+## 可选增强模式
 
-兼容的视线客户端从自己的PC UDP端口，直接连接头显地址的UDP9030；这条路径不需要运行VRCFT。原有眼面捕客户端仍可独立连接和停止，停止其中一个客户端不会退订另一个。
+如果头显安装了可选的 [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) Magisk 模块，PicoFacialBridge 会自动识别为**增强模式**，并向 PC 转发真实瞳孔直径以及逐眼独立表情（包括经由 `X` 包传输的独立右眉心上抬）。
 
-在Bridge中保持“传输眼追”开启，本地眼追开关也控制独立视线订阅。仅订阅视线时，只发送最新的新鲜原生 `E` 样本，不等待表情结果，也不发送 `A/F/X` 包。原有Avatar路径保留原来的包格式和源频率。客户端实现见[协议参考](GAZE-PROTOCOL.md)。
+PicoFacialBridge 本身始终保持免 Root；模块安装与头显端后处理参数配置均在 [PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance) 中管理。
 
-直连客户端已使用真人PICO视线，在正常EAC保护的VRChat中接通NVIDIA 616.92 consumer并成功提交。这确认了传输与消费端链路；VRSS画面区域的对齐和跟随尚未获得目视确认。
-
-头显回放已覆盖 Avatar/gaze 独立启停、face-only 连续性和本地眼传输开关；实际模块共存及 Bridge 进程重启也另行验证过。
+---
 
 ## 界面说明
 
-界面分为 **眼面捕、Gaze 视线、诊断** 三页。页面上方保留服务状态、追踪模式及启动／停止／重启操作；切换语言不改变当前页面和传输设置。
+应用顶部常驻服务状态栏（运行状态、当前追踪模式、**启动 / 停止 / 重启** 按钮，以及 **中文 / English** 切换按钮），下方分为三个页面。切换语言不会重置当前页面或传输开关设置。
 
-较矮的横屏窗口支持整页滚动，避免服务操作区挤占正文；窄窗口将语言按钮移到标题下方，眼部与面部卡片改为纵向排列。
+### 眼面捕
 
-| 控件或状态 | 说明 |
-|---|---|
-| 追踪模式 | 头显端检测到的普通模式或增强模式 |
-| 启动 / 停止 / 重启 | 控制追踪服务，无需 ADB |
-| 传输眼追 / 传输面捕 | 分别控制两个通道的发送，修改立即生效并被保存 |
-| 两项均关闭 | 暂停追踪采集与数据发送，保留发现与控制通信 |
-| 眼追 / 面捕 Hz | 最近一秒成功发给Avatar客户端的源帧数，不是采集频率或画面帧率 |
-| 诊断 → 追踪数值 | 第一项进入专用子页，按眼眉／面颊／嘴部／眼动切换，默认眼眉；原生瞳孔、睁眼度、逐眼及合并视线均可查看，52＋1 项表情仍按 32 行左右成对排列 |
-| 监视工具 ⋯ | 搜索字段、筛选有效非零读数、查看单位与源年龄；发送包详情提供源快照及最近成功发送的 E／A／F／X 原包字段，包括有效位、掩码、epoch 和分组时钟 |
-| 冻结 / 继续 | 暂停或恢复读数显示，不影响追踪与网络转发；返回按钮或系统返回键回到诊断 |
-| Gaze 视线页 | 独立订阅状态、客户端地址、ID、epoch、租约剩余、成功发送的新源频率及包数 |
-| 原生样本 | 区分等待样本、新鲜有效、视线无效及样本过期，另行显示最新源样本年龄 |
-| 前往眼追传输设置 | 返回共用的眼追开关；关闭会同时影响 Avatar 眼部和独立 gaze 输出 |
-| 诊断页 | 采集模式、头显 UDP 地址、原生帧数、缓冲区历史溢出、最近错误及可展开／复制的日志 |
-| 0 Hz | 没有客户端、通道已关闭或没有新的样本；重复样本与心跳不计入 |
-| 等待新鲜追踪数据 | 请佩戴并唤醒头显，检查系统追踪设置与权限 |
-| 中文 / English | 切换界面与通知语言，不影响追踪 |
+用于管理发往 `UnifiedPicoModule` 的 Avatar 眼面捕数据：
 
-PICO 的眼动与面部追踪共用同一套算法，因此即使只传输一个通道，也需要授予两项权限。传输开关只控制数据是否发送，不控制摄像头电源。
+- **传输眼追 / 传输面捕：** 两个通道可独立开关，修改即时生效并自动保存。两项同时关闭时暂停采集与转发，但保留发现与控制通信。
+- **发送频率（Hz）：** 统计最近 1 秒内成功发给 Avatar 客户端的新源帧数，重复旧帧与心跳不计入。显示 `0 Hz` 表示未连接客户端、通道已关闭或暂无新鲜采样。
+- **通道交集规则：** 实际发送的通道是本地开关与 PC 订阅的交集。仅开启眼追时，除原生眼动数据外还会附带眨眼、眉毛、`EyeWide`、`EyeSquint` 等眼周表情，此时面捕频率显示为 `0`；仅开启面捕时，不发送原生眼动数据和眼周表情。
+- **权限说明：** PICO 的眼动与面部追踪共用同一套系统算法，因此即便只传输单个通道，也需要同时授予两项权限。本地开关只控制数据是否发送，不控制摄像头电源。
 
-实际发送的通道是本地传输开关与 PC 端订阅的交集。只传输眼动时，除原生眼动数据外，还会发送眨眼、眉毛、EyeWide 与 EyeSquint 等眼周表情，此时面捕 Hz 显示为 0；只传输面部时，不发送眼动数据和眼周表情。
+### Gaze 视线
 
-追踪监视显示 Bridge 侧数值，不是 PC 模块或 Avatar 的最终输出。眼动页同时显示瞳孔线上原值及除以 10 后的毫米值，原生睁眼度用 0–1，视线 XYZ 用带正负的方向尺度；表情强度条仍用 0–1。数值不随强度条限幅，超出显示尺度时标为琥珀色。无效、过期、模式过滤、未采集和关闭均有独立状态，不以默认瞳孔或零值代替。
+用于查看独立原生视线客户端的连接与数据状态：
 
-请先启动追踪并启用所需通道；打开子页不会额外采集或改变 PC 订阅。页面可见时随屏幕刷新读取最新源值，不插值、不固定限制为10Hz；离开页面后停止帧回调。源快照不代表数据已经发出，工具菜单中的“发送包详情”按 Avatar 眼动、Avatar 表情和独立 gaze 分别列出最近成功发送的原包；历史包保留其原时间和 epoch。
+- 显示订阅状态（`等待客户端订阅`、`已订阅`、`客户端已退订`、`订阅已过期` 或 `发送失败`）、客户端地址、订阅 ID、会话 epoch、租约剩余时间、发送频率与已发送包数。
+- 单独列出**原生样本**状态（`等待新样本`、`新鲜 · 融合视线有效`、`样本新鲜 · 视线无效` 或 `样本已过期`）与最新源样本年龄。
+- 点击**前往眼追传输设置**可跳回眼面捕页的共用眼追开关；关闭该开关会同时停止 Avatar 眼部和独立视线两路输出。
+
+### 诊断
+
+集中展示头显 UDP 地址（`<IPv4>:9030`）、原生眼部 / 面部帧计数、环形缓冲区历史溢出、最近错误，以及可展开和复制的服务日志。
+
+点击诊断页顶部的**追踪数值 →** 可进入只读的实时**追踪监视**子页：
+
+- **四个分区标签：** `眼眉`（默认）、`面颊`、`嘴部` 与 `眼动`。前三个表情页将 52 + 1 项表情（含增强模式下的独立 `BrowInnerUpR`）按 32 行左右成对排列；`眼动`页显示瞳孔线上原值及毫米值（`原值 ÷ 10`）、0–1 睁眼度、带正负的 −1…1 头部相对 XYZ 视线向量、状态字及原生源时间戳。
+- **逐帧真实读数：** 页面可见时随屏幕刷新率直接读取最新源值，退出即停止回调，不会触发额外采集或改动 PC 订阅。数值不随 0–1 强度条限幅（超范围以琥珀色标出）；无效、过期、模式过滤、未采集和关闭均有明确状态标识，不会用默认值或零值替代。
+- **顶部工具栏与监视工具（`⋯`）：** 支持按中英文名称搜索字段、筛选有效非零项（`|v| > 0.01`）、点击**冻结 / 继续**暂停界面刷新而不中断后台转发；打开**发送包详情**可分别查看源快照以及 Avatar 和独立视线两路最近一次成功发送的 `E` / `A` / `F` / `X` 原包（含有效位、通道掩码、epoch 与分组时钟）。
+
+---
+
+## 独立原生视线
+
+兼容的 PC 视线客户端可以从自身的临时 UDP 端口直接向头显的 **UDP 9030** 订阅原生视线，无需运行 VRCFaceTracking 或 PC 端中继。
+
+- **独立生命周期：** Avatar 眼面捕客户端与独立视线客户端各自连接、续租和停止，互不干扰，停止其一不会退订另一方。
+- **低延迟原生 `E` 包：** 仅订阅视线时，只发送最新一帧新鲜（150 ms 以内）的原生 `E` 样本，不等待面部表情，也不发送 `A` / `F` / `X` 包。
+- **共用本地眼追开关：** 需保持 PicoFacialBridge 中的**传输眼追**处于开启状态；关闭后会同时停止两路眼动输出。
+
+控制命令、租约续期、epoch 规则及报文偏移请参阅 [GAZE-PROTOCOL_zh.md](GAZE-PROTOCOL_zh.md)。
+
+---
 
 ## 故障排查
 
-| 现象 | 检查项 |
+| 现象 | 检查与处理 |
 |---|---|
-| VRCFT 找不到头显 | 检查 PC 与头显是否在同一局域网、路由器是否开启了访客网络或客户端隔离、PC 是否有 VPN 或虚拟网卡；尝试在模块配置中指定 `Bridge.IP` |
-| 被防火墙拦截 | 允许 VRCFT 在专用网络中使用 UDP 9030，不建议整体关闭防火墙 |
-| 已连接但始终为 0 Hz | 确认传输开关已打开，佩戴并唤醒头显，检查追踪权限与系统追踪设置 |
-| 显示错误或不支持的布局 | 打开诊断日志，记录错误信息、头显型号与固件版本 |
-| 休眠或切换网络后停止追踪 | 唤醒头显，核对当前 IP，点击重启后重新连接 VRCFT |
-| 有数据但 Avatar 无反应 | 检查 VRCFT 的输出、VRChat OSC 与 Avatar 参数 |
-| APK 更新失败 | 参见上文关于签名的说明；请下载用户 APK，而不是 instrumentation 测试 APK |
+| **VRCFT 找不到头显** | 确认 PC 与头显在同一局域网，路由器未开启访客网络或客户端隔离，并排查 PC 上的 VPN 或虚拟网卡。可在 `UnifiedPicoModule.json` 中手动指定 `Bridge.IP`。 |
+| **被防火墙拦截** | 在 Windows 防火墙中放行 VRCFaceTracking 在专用网络使用 **UDP 9030**，无需整体关闭防火墙。 |
+| **已连接但发送频率始终为 0 Hz** | 确认应用内传输开关已开启，佩戴并唤醒头显，同时检查两项追踪权限与 PICO 系统追踪设置。 |
+| **提示错误或不支持的布局** | 打开**诊断 → 服务日志**复制报错信息，并核对头显型号与 PICO OS 版本。 |
+| **休眠或切换 Wi-Fi 后中断** | 唤醒头显，在**诊断**页核对当前 IPv4 地址，点击**重启**后重新连接 VRCFT。 |
+| **VRCFT 有数据但 Avatar 无反应** | 检查 VRCFT 的 Output 页面、确认 VRChat 已启用 OSC，并核对 Avatar 的面部追踪参数配置。 |
+| **覆盖安装 APK 失败** | 不同构建的 debug 签名可能不一致，请先卸载旧版再安装新版。确认下载的是用户 APK，而不是 `androidTest` 测试 APK。 |
 
-[提交 Issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues) 时，请提供应用版本、头显型号、PICO OS 版本、VRCFT 与模块版本、复现步骤，以及去除个人信息后的日志片段。请勿上传原始面部追踪样本、设备标识或签名密钥。
+[提交 Issue](https://github.com/WolalaQAQ/PicoFacialBridge/issues) 时，请附上应用版本、头显型号、PICO OS 版本、VRCFT 与模块版本、复现步骤，以及脱敏后的诊断日志。请勿上传原始面部追踪样本、设备标识或签名密钥。
+
+---
 
 ## 隐私与安全
 
-本应用只在局域网内向已连接的客户端转发追踪数据，不持久保存原始表情帧，日志只记录协商状态、频率与有效性。UDP 协议没有加密与身份验证，请仅在可信网络中使用，不要将 UDP 9030 端口映射到公网。诊断工具可能记录生物特征样本，分享前请检查并去除敏感内容。
+PicoFacialBridge 只在局域网内向已连接客户端转发追踪数据，监视器查看的实时数值仅驻留内存（不写盘、不写日志），服务日志仅记录连接状态、频率与有效性。应用仅使用标准 Android 运行时权限，不屏蔽系统摄像头与传感器指示，也不修改系统分区或打包 PICO 私有库。
 
-本应用使用标准的 Android 运行时权限，系统的摄像头与传感器指示保持有效。应用不修改系统分区，不放宽 SELinux，也不打包 PICO 私有库。
+> [!WARNING]
+> BridgeSplit 与独立视线协议的 UDP 报文均不含加密与身份认证。请仅在可信局域网内使用，切勿将 UDP 9030 端口暴露到公网。
 
-## 开发
+---
+
+## 开发说明
+
+### 项目结构与协议
+
+| 目录 | 说明 |
+|---|---|
+| `bridge/` | 免 Root Android 应用、三页仪表盘、追踪监视器与 UDP 前台服务 |
+| `shared/` | JNI 原生层、共享内存解析、帧分发与 BridgeSplit 线格式封装 |
+| `probe/` | 开发者诊断应用 |
+| `tests/` | 主机端单元 / 协议 / 帧率 / 视线测试、界面契约检查与 APK 分发校验 |
+
+BridgeSplit 通过 **UDP 9030** 通信，并使用多播地址 **239.255.255.250** 完成自动发现。完整包格式与控制流程见 [UnifiedPicoModule 协议参考](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/docs/protocol_zh.md)，独立视线命令空间见 [GAZE-PROTOCOL_zh.md](GAZE-PROTOCOL_zh.md)。修改协议时需与 `UnifiedPicoModule` 同步更新。
 
 ### 从源码构建
 
-构建需要 JDK 17 与 Android SDK 命令行工具（或 Android Studio）。请将 `JAVA_HOME` 与 `ANDROID_HOME` 指向对应的安装目录，并将 `sdkmanager` 加入 PATH，然后接受 SDK 许可并安装固定版本的依赖：
+需要 **JDK 17** 与 Android SDK 命令行工具（Gradle Wrapper `8.9`，Android Gradle Plugin `8.7.3`）。配置好 `JAVA_HOME`、`ANDROID_HOME` 并将 `sdkmanager` 加入 `PATH` 后，安装固定版本的构建依赖：
 
 ```sh
 sdkmanager --licenses
 sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;26.1.10909125" "cmake;3.22.1"
+
 git clone https://github.com/WolalaQAQ/PicoFacialBridge.git
 cd PicoFacialBridge
+
 # Linux / macOS
 bash ./gradlew :bridge:assembleDebug
+
 # Windows PowerShell
 .\gradlew.bat :bridge:assembleDebug
 ```
 
-Gradle Wrapper 版本为 8.9，Android Gradle Plugin 版本为 8.7.3。首次构建需要联网。用户应用只需构建 `:bridge`，`:probe` 是开发者诊断应用。构建产物为 `bridge/build/outputs/apk/debug/bridge-debug.apk`，使用本机 debug 签名，可以直接安装。
+用户应用只需构建 `:bridge`（`:probe` 为开发者诊断应用）。构建完成后，带本地 debug 签名的可安装 APK 位于 `bridge/build/outputs/apk/debug/bridge-debug.apk`。
 
-### 主机检查
+### 主机测试与检查
 
 ```sh
 bash tests/run-host-tests.sh
+python3 tests/test_ui_dashboard.py
+python3 tests/test_inspector_frames.py
+python3 tests/test_rootless_boundary.py
 pwsh -File tests/check-translations.ps1
-# 需先构建 debug APK，仅依赖 Python 3 标准库
+
+# 需先构建 debug APK（仅依赖 Python 3 标准库）
 python3 tests/test_apk_distribution.py
 ```
 
-在 Windows 上也可以运行 `tests/` 下的 `run-unit.ps1`、`run-protocol.ps1`、`run-cadence.ps1`、`run-forwarding.ps1` 与 `run-gaze.ps1`。这些脚本从本地文件 `tools/jdk-path.txt` 读取 JDK 目录（该文件不纳入版本控制），可以通过 `Set-Content tools/jdk-path.txt $env:JAVA_HOME` 生成。设备 UI 测试与真机验收不在主机 CI 范围内。
+在 Windows 上也可以单独运行 `tests/` 下的 PowerShell 测试脚本（`run-unit.ps1`、`run-protocol.ps1`、`run-cadence.ps1`、`run-forwarding.ps1`、`run-independent.ps1`、`run-expressions.ps1`、`run-gaze.ps1`）。这些脚本从不纳入版本控制的本地文件 `tools/jdk-path.txt` 读取 JDK 路径，可用 `Set-Content tools/jdk-path.txt $env:JAVA_HOME` 生成。
 
-### 项目结构
-
-```text
-PICO 追踪服务 → Binder / 只读共享内存
-            → Android 前台服务 → 局域网 UDP
-            → UnifiedPicoModule → VRCFaceTracking → VRChat OSC
-```
-
-| 目录 | 内容 |
-|---|---|
-| `bridge/` | 用户应用与 UDP 服务 |
-| `shared/` | JNI、数据解析与转发逻辑 |
-| `probe/` | 开发者诊断应用 |
-| `tests/` | 主机、设备与网络检查 |
-
-版本变化请参阅[更新日志](CHANGELOG_zh.md)，发布流程请参阅[发布指南](docs/RELEASING_zh.md)。
-
-### 协议
-
-本应用与 UnifiedPicoModule 之间使用 BridgeSplit 协议，基于 UDP 9030 端口，并通过多播地址 239.255.255.250 进行发现。眼动数据与面部数据分别作为数据报，按各自的源频率发送，只携带已订阅的通道。
-
-包格式、控制报文与连接流程的完整说明请参阅 UnifiedPicoModule 的[协议参考](https://github.com/WolalaQAQ/UnifiedPicoModule/blob/main/docs/protocol_zh.md)。协议变更时，本应用与 UnifiedPicoModule 需要同时更新。
-
-[独立视线订阅](GAZE-PROTOCOL.md)在同一个头显UDP入口上使用单独的命令名；原BridgeSplit客户端无需更新，仍可使用原来的眼面捕会话。
+版本历史与 GitHub Releases 自动发布流程请参阅 [CHANGELOG_zh.md](CHANGELOG_zh.md) 与 [docs/RELEASING_zh.md](docs/RELEASING_zh.md)。
 
 ### 参与贡献
 
-欢迎提交 Issue 与 Pull Request。修改时请保持协议兼容与各通道的原始发送节奏，并同步更新两份 README 与界面翻译。请勿提交密钥、本机 SDK 路径、原始生物特征样本，或个人的研究与测试记录。
+欢迎提交 Issue 与 Pull Request。改动应保持协议兼容与各通道的原生发送节奏，涉及用户可见变更时请同步更新中英文 README 和界面字符串资源。切勿提交签名密钥、本机 SDK 路径、原始生物特征样本或个人测试记录。
 
-CI 会执行主机测试、翻译检查、Android lint 与 APK 构建。发布 GitHub Release 后，CI 会自动上传 debug 签名的用户 APK、校验和与许可声明，无需配置自定义 Secrets。
+---
+
+## Pico-Enhance 生态
+
+| 项目 | 作用 |
+|---|---|
+| **[PicoFacialBridge](https://github.com/WolalaQAQ/PicoFacialBridge)** | 免 Root 的 PICO 4 Pro 眼动与面部追踪桥接应用（本仓库） |
+| **[UnifiedPicoModule](https://github.com/WolalaQAQ/UnifiedPicoModule)** | 接收 BridgeSplit 数据流的 Windows VRCFaceTracking 模块 |
+| **[PicoET-Enhance](https://github.com/WolalaQAQ/PicoET-Enhance)** | 可选 Magisk 模块，解锁逐眼独立表情与真实瞳孔直径 |
+| **[VRCFT-Enhance](https://github.com/WolalaQAQ/VRCFT-Enhance)** | 降低 VRCFaceTracking OSC 输出延迟的补丁工具 |
+| **[VD-PicoEnhance](https://github.com/WolalaQAQ/VD-PicoEnhance)** | Virtual Desktop PICO 增强插件（码率 / 分辨率解锁与体验优化） |
+| **[PicoRegionSwitch](https://github.com/WolalaQAQ/PicoRegionSwitch)** | 在国行与国际版之间切换 PICO 系统应用 |
+| **[PicoUSB-Quiet](https://github.com/WolalaQAQ/PicoUSB-Quiet)** | 屏蔽 PICO 上重复弹出的 Android USB 权限提示 |
+
+---
 
 ## 社区
 
-使用求助、交流和版本更新通知，欢迎加入 Pico-Enhance 社区。
+使用求助、交流与版本更新通知，欢迎加入 Pico-Enhance 社区。
 
 <a href="https://discord.gg/ueSEydeVD8"><img src="https://img.shields.io/badge/Discord-Join%20Pico--Enhance-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="加入 Pico-Enhance Discord"></a>
 
@@ -218,14 +256,16 @@ CI 会执行主机测试、翻译检查、Android lint 与 APK 构建。发布 G
 
 <img src="assets/community/qq-group-qr.png" alt="Pico-Enhance QQ 群二维码" width="240">
 
+---
+
 ## 致谢
 
-感谢 [thoricelli](https://github.com/thoricelli) 开发的 [PicoFacialDataDaemon](https://github.com/thoricelli/PicoFacialDataDaemon) 与 [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule)。
+感谢 [thoricelli](https://github.com/thoricelli) 开发的原版 [PicoFacialDataDaemon](https://github.com/thoricelli/PicoFacialDataDaemon) 与 [PicoFacialDataModule](https://github.com/thoricelli/PicoFacialDataModule)。
 
-本项目在开发过程中参考了原项目的 Binder 调用、共享内存数据布局与 UDP 协议，这些工作为访问头显追踪服务及最初的 VRCFT 集成奠定了基础。在此基础上，PicoFacialBridge 将头显端实现为无需 Root 的 Android 应用，提供独立的生命周期管理与转发实现，目前使用的线格式与原项目不同。
+PicoFacialBridge 在开发时参考了原项目的 Binder 调用、共享内存布局与 UDP 发现思路，并在此基础上将头显端重构为免 Root Android 应用，提供独立的生命周期管理与 BridgeSplit 线格式。
 
 本项目是独立的社区项目，不是 PICO 官方产品，也不代表上游作者的官方发布。
 
 ## 许可证
 
-与原项目一致，本项目采用 [MIT](LICENSE) 许可证。完整许可与保留的上游版权声明见 [LICENSE](LICENSE) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，两份文件同时包含在 APK 与 Release 附件中。
+与上游项目一致，本项目采用 [MIT 许可证](LICENSE)。完整许可与保留的上游版权声明见 [LICENSE](LICENSE) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，两份文件会同时打包进每个 APK 与 GitHub Release 附件中。
